@@ -133,103 +133,119 @@ class HttpAdapter:
         :param addr (tuple): The client's address.
         :param routes (dict): The route mapping for dispatching requests.
         """
+        addr = writer.get_extra_info("peername")
+        print("[HttpAdapter] Invoke handle_client_coroutine connection {})".format(addr))
+
         # Request handler
         req = self.request
         # Response handler
         resp = self.response
 
-        print("[HttpAdapter] Invoke handle_client_coroutine connection {})".format(addr))
-        addr = writer.get_extra_info("peername")
 
         # TODO Handle the request asynchronously
-        msg = await reader.read(1024)
+        try:
+            # Read the raw request data from the client (asynchronously)
+            msg = await reader.read(4096)
+            if not msg:
+                print("[HttpAdapter] No data received from {}".format(addr))
+                return
+            
+            # Decoding the raw request data and preparing the Request object
+            req.prepare(msg.decode("utf-8", errors="ignore"), routes=self.routes)
 
+            # Process Logic App(hook) if client request matches a route with a hook (EX: /Login)
+            # logic function can be async or sync, we will handle both cases
+            if req.hook:
+                if inspect.iscoroutinefunction(req.hook):
+                    hook_result = await req.hook(req)
+                else:
+                    hook_result = req.hook(req)
 
-        req.prepare(msg.decode("utf-8"), routes={})
+                # Temporarily store the hook result (EX: {"message": "login success"}) in the variable _content
+                import json
+                if isinstance(hook_result, dict):
+                    resp._content = json.dumps(hook_result).encode("utf-8")
+                else:
+                    resp._content = str(hook_result).encode("utf-8")
 
-        # Handle request hook
-        if req.hook:
-            #
-            # TODO: handle for App hook here
-            #
-            response = ""
+            # package header & body into HTTP response format
+            response = resp.build_response(req)
 
-        # Build response
-        #print("[HttpAdapter] Start **ASYNC** build_response with type {}".format(type(req)))
-        response = resp.build_response(req)
+            # Pump data back to the client asynchronously
+            writer.write(response)
+            await writer.drain()
 
-        # Send all the response asynchronously
-        writer.write(response)
-        await writer.drain()
+        except Exception as e:
+                print("[HttpAdapter] Error handling client {}: {}".format(addr, e))
 
-    @property
-    def extract_cookies(self, req, resp):
-        """
-        Build cookies from the :class:`Request <Request>` headers.
+    # @property
+    # def extract_cookies(self, req, resp):
+    #     """
+    #     Build cookies from the :class:`Request <Request>` headers.
 
-        :param req:(Request) The :class:`Request <Request>` object.
-        :param resp: (Response) The res:class:`Response <Response>` object.
-        :rtype: cookies - A dictionary of cookie key-value pairs.
-        """
-        cookies = {}
-        for header in headers:
-            if header.startswith("Cookie:"):
-                cookie_str = header.split(":", 1)[1].strip()
-                for pair in cookie_str.split(";"):
-                    key, value = pair.strip().split("=")
-                    cookies[key] = value
-        return cookies
+    #     :param req:(Request) The :class:`Request <Request>` object.
+    #     :param resp: (Response) The res:class:`Response <Response>` object.
+    #     :rtype: cookies - A dictionary of cookie key-value pairs.
+    #     """
+    #     cookies = {}
+    #     for header in headers:
+    #         if header.startswith("Cookie:"):
+    #             cookie_str = header.split(":", 1)[1].strip()
+    #             for pair in cookie_str.split(";"):
+    #                 key, value = pair.strip().split("=")
+    #                 cookies[key] = value
+    #     return cookies
 
-    def build_response(self, req, resp):
-        """Builds a :class:`Response <Response>` object 
+    # def build_response(self, req, resp):
+    #     """Builds a :class:`Response <Response>` object 
 
-        :param req: The :class:`Request <Request>` used to generate the response.
-        :param resp: The  response object.
-        :rtype: Response
-        """
-        response = Response()
+    #     :param req: The :class:`Request <Request>` used to generate the response.
+    #     :param resp: The  response object.
+    #     :rtype: Response
+    #     """
+    #     response = Response()
 
-        # Set encoding.
-        response.encoding = get_encoding_from_headers(response.headers)
-        response.raw = resp
-        response.reason = response.raw.reason
+    #     # Set encoding.
+    #     response.encoding = get_encoding_from_headers(response.headers)
+    #     response.raw = resp
+    #     response.reason = response.raw.reason
 
-        if isinstance(req.url, bytes):
-            response.url = req.url.decode("utf-8")
-        else:
-            response.url = req.url
+    #     if isinstance(req.url, bytes):
+    #         response.url = req.url.decode("utf-8")
+    #     else:
+    #         response.url = req.url
 
-        # Add new cookies from the server.
-        response.cookies = extract_cookies(req)
+    #     # Add new cookies from the server.
+    #     response.cookies = extract_cookies(req)
 
-        # Give the Response some context.
-        response.request = req
-        response.connection = self
+    #     # Give the Response some context.
+    #     response.request = req
+    #     response.connection = self
 
-        return response
+    #     return response
 
-    def build_json_response(self, req, resp):
-        """Builds a :class:`Response <Response>` object from JSON data
+    # def build_json_response(self, req, resp):
+    #     """Builds a :class:`Response <Response>` object from JSON data
 
-        :param req: The :class:`Request <Request>` used to generate the response.
-        :param resp: The  response object.
-        :rtype: Response
-        """
-        response = Response(req)
+    #     :param req: The :class:`Request <Request>` used to generate the response.
+    #     :param resp: The  response object.
+    #     :rtype: Response
+    #     """
+    #     response = Response(req)
 
-        # Set encoding.
-        response.raw = resp
+    #     # Set encoding.
+    #     response.raw = resp
 
-        if isinstance(req.url, bytes):
-            response.url = req.url.decode("utf-8")
-        else:
-            response.url = req.url
+    #     if isinstance(req.url, bytes):
+    #         response.url = req.url.decode("utf-8")
+    #     else:
+    #         response.url = req.url
 
-        # Give the Response some context.
-        response.request = req
-        response.connection = self
+    #     # Give the Response some context.
+    #     response.request = req
+    #     response.connection = self
 
-        return response
+    #     return response
 
 
     # def get_connection(self, url, proxies=None):

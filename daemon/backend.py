@@ -54,9 +54,9 @@ from .dictionary import CaseInsensitiveDict
 import selectors
 sel = selectors.DefaultSelector()
 
-mode_async = "callback"
-#mode_async = "coroutine"
-mode_async = "threading"
+#mode_async = "callback"
+mode_async = "coroutine"
+#mode_async = "threading"
 
 def handle_client(ip, port, conn, addr, routes):
     """
@@ -93,7 +93,7 @@ def handle_client_callback(server, ip, port,conn, addr, routes):
 
 
 # Coroutine async/await for handling new client
-async def handle_client_coroutine(reader, writer):
+async def handle_client_coroutine(reader, writer, ip, port, routes):
     """
     Coroutine in async communication to initialize connection instance
     then delegates the client handling logic to it.
@@ -104,26 +104,35 @@ async def handle_client_coroutine(reader, writer):
     addr = writer.get_extra_info("peername")
     print("[Backend] Invoke handle_client_coroutine accepted connection from {}".format(addr))
 
-    # Handle client in asynchronous mode
-    while True:
-          daemon = HttpAdapter(None, None, None, None, None)
-           await daemon.handle_client_coroutine(reader, writer)
+    daemon = HttpAdapter(ip, port, None, addr, routes)
+    
+    try:
+        await daemon.handle_client_coroutine(reader, writer)
+    except Exception as e:
+        print("[Backend] Error handling client {}: {}".format(addr, e))
+    finally:
+        print("[Backend] Closing connection to {}".format(addr))
+        writer.close()
+        await writer.wait_closed()
+        print("[Backend] Connection to {} closed".format(addr))
+
 
 async def async_server(ip="0.0.0.0", port=7000, routes={}):
     print("[Backend] async_server **ASYNC** listening on port {}".format(port))
     if routes != {}:
         print("[Backend] route settings")
         for key, value in routes.items():
-            isCoFunc = ""
-            if inspect.iscoroutinefunction(value):
-               isCoFunc += "**ASYNC** "
-            print("   + ('{}', '{}'): {}{}".format(key[0], key[1], isCoFunc, str(value)))
+            isCoFunc = "**ASYNC**" if inspect.iscoroutinefunction(value) else ""
+            print(f"   + ('{key[0]}', '{key[1]}'): {isCoFunc}{value.__name__}")
 
-    async_server = await asyncio.start_server(handle_client_coroutine, ip, port)
-    async with async_server:
-        await async_server.serve_forever()
-    return
-
+    # Create Closure function to pass routes to the handler
+    async def client_connected_cb(reader, writer):
+        await handle_client_coroutine(reader, writer, ip, port, routes)
+    
+    # Start event loop of Asyncio server
+    server = await asyncio.start_server(client_connected_cb, ip, port)
+    async with server:
+        await server.serve_forever()
 
 def run_backend(ip, port, routes):
     """
@@ -193,8 +202,14 @@ def run_backend(ip, port, routes):
                    callback(key.fileobj, ip, port, conn, addr, routes)
 
             else:
-               # Baseline multi-thread implementation
-               #client_thread = threading.Thread...
+                # Baseline multi-thread implementation
+                #client_thread = threading.Thread...
+                client_thread = threading.Thread(
+                   target=handle_client, 
+                   args=(ip, port, conn, addr, routes),
+                   daemon=True
+                )
+                client_thread.start()
 
 
     except socket.error as e:

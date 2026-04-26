@@ -1,4 +1,4 @@
-<!doctype html>
+<!-- <!doctype html>
 <html>
 <head>
     <title>bksysnet@hcmut welcome</title>
@@ -15,7 +15,140 @@
     <p>This domain is for use in illustrative examples in documents.
     </p>
   
-       <img src="images/welcome.png" alt="bksysnet at HCMUT" width="500" height="600">  
+       <!-- <img src="images/welcome.png" alt="bksysnet at HCMUT" width="500" height="600">   -->
+        <!-- <img src="/images/welcome.png" alt="bksysnet at HCMUT" width="500" height="600">
 </div>
+</body>
+</html> --> -->
+
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <title>AsynapRous Hybrid Chat</title>
+    <style>
+        body { font-family: Arial, sans-serif; display: flex; height: 100vh; margin: 0; background: #f0f2f5; }
+        #sidebar { width: 250px; background: #fff; border-right: 1px solid #ccc; display: flex; flex-direction: column; }
+        .channel-item { padding: 15px; cursor: pointer; border-bottom: 1px solid #eee; }
+        .channel-item:hover { background: #e4e6eb; }
+        .channel-item.active { background: #d8e2ef; font-weight: bold; }
+        .notification { color: red; font-size: 12px; float: right; font-weight: bold; }
+        
+        #main-chat { flex-grow: 1; display: flex; flex-direction: column; }
+        #header { padding: 20px; background: #fff; border-bottom: 1px solid #ccc; font-size: 20px; font-weight: bold; }
+        #chat-box { flex-grow: 1; padding: 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; }
+        
+        /* Tin nhắn không sửa/xóa được theo chuẩn đề bài */
+        .msg { padding: 10px 15px; border-radius: 20px; max-width: 60%; line-height: 1.4; }
+        .msg.me { background: #0084ff; color: white; align-self: flex-end; }
+        .msg.them { background: #e4e6eb; color: black; align-self: flex-start; }
+        .sender-name { font-size: 11px; color: #666; margin-bottom: 2px; }
+        
+        #input-area { padding: 20px; background: #fff; border-top: 1px solid #ccc; display: flex; }
+        #msg-input { flex-grow: 1; padding: 10px; border-radius: 20px; border: 1px solid #ccc; outline: none; }
+        #send-btn { margin-left: 10px; padding: 10px 20px; background: #0084ff; color: #fff; border: none; border-radius: 20px; cursor: pointer; }
+    </style>
+</head>
+<body>
+
+    <div id="sidebar">
+        <h3 style="padding-left: 15px;">Danh Bạ & Kênh</h3>
+        <div id="channel-list"></div>
+    </div>
+
+    <div id="main-chat">
+        <div id="header">Kênh: Global</div>
+        <div id="chat-box"></div> 
+        <div id="input-area">
+            <input type="text" id="msg-input" placeholder="Nhập tin nhắn..." autocomplete="off">
+            <button id="send-btn" onclick="sendMessage()">Gửi</button>
+        </div>
+    </div>
+
+    <script>
+        let myName = "";
+        let currentChannel = "Global";
+        let localChannelsState = {}; // Dùng để kiểm tra tin nhắn mới (Notification system)
+
+        async function pollData() {
+            try {
+                let res = await fetch('/api/poll');
+                let data = await res.json();
+                myName = data.my_name;
+                
+                renderSidebar(data.peers, data.channels);
+                renderChat(data.channels[currentChannel] || []);
+            } catch (e) { console.error("Mất kết nối tới Backend."); }
+        }
+
+        function renderSidebar(peers, channels) {
+            const list = document.getElementById('channel-list');
+            list.innerHTML = "";
+            
+            // Luôn có kênh Global
+            let allChannels = ["Global"];
+            // Thêm các Peer đang online vào danh sách kênh
+            peers.forEach(p => { if (p !== myName && !allChannels.includes(p)) allChannels.push(p); });
+            
+            allChannels.forEach(ch => {
+                let div = document.createElement('div');
+                div.className = "channel-item" + (ch === currentChannel ? " active" : "");
+                div.onclick = () => { currentChannel = ch; document.getElementById('header').innerText = `Kênh: ${ch}`; pollData(); };
+                
+                // Hệ thống thông báo (Notification): Có tin nhắn mới chưa đọc
+                let newMsgs = channels[ch] ? channels[ch].length : 0;
+                let oldMsgs = localChannelsState[ch] ? localChannelsState[ch].length : 0;
+                let notifHtml = (newMsgs > oldMsgs && ch !== currentChannel) ? `<span class="notification">New!</span>` : "";
+                
+                div.innerHTML = `${ch} ${notifHtml}`;
+                list.appendChild(div);
+            });
+            
+            // Cập nhật state nội bộ
+            localChannelsState = channels;
+        }
+
+        function renderChat(messages) {
+            const box = document.getElementById('chat-box');
+            // Kiểm tra xem có cần tự động cuộn xuống đáy không
+            const isScrolledToBottom = box.scrollHeight - box.clientHeight <= box.scrollTop + 10;
+            
+            box.innerHTML = "";
+            messages.forEach(m => {
+                let isMe = m.from === myName;
+                let html = `<div class="msg ${isMe ? 'me' : 'them'}">
+                                ${!isMe && currentChannel === 'Global' ? `<div class="sender-name">${m.from}</div>` : ''}
+                                ${m.msg}
+                            </div>`;
+                box.innerHTML += html;
+            });
+
+            if (isScrolledToBottom) {
+                box.scrollTop = box.scrollHeight; // Auto cuộn xuống
+            }
+        }
+
+        async function sendMessage() {
+            let input = document.getElementById('msg-input');
+            let msg = input.value.trim();
+            if (!msg) return;
+
+            input.value = "";
+            await fetch('/api/send', {
+                method: 'POST',
+                body: JSON.stringify({ target: currentChannel, message: msg })
+            });
+            pollData(); // Cập nhật ngay lập tức
+        }
+
+        // Bắt sự kiện phím Enter
+        document.getElementById("msg-input").addEventListener("keypress", function(event) {
+            if (event.key === "Enter") { event.preventDefault(); document.getElementById("send-btn").click(); }
+        });
+
+        // Giao tiếp Non-blocking: Javascript liên tục kéo dữ liệu mỗi giây
+        setInterval(pollData, 1000);
+        pollData();
+    </script>
 </body>
 </html>
