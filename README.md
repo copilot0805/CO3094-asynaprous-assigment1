@@ -25,7 +25,7 @@ Phần này mô phỏng một Reverse Proxy có khả năng cân bằng tải (L
 1. **Cấu hình**: Chỉnh sửa file cấu hình proxy (thường là `proxy.conf`) để định nghĩa các backend.
 2. **Lệnh chạy**:
    ```bash
-   python start_proxy.py --proxy-port 8080
+   python start_proxy.py --server-port 8080
    ```
 3. **Chức năng**: Proxy sẽ lắng nghe tại cổng 8080 và điều hướng yêu cầu đến các máy chủ backend dựa trên Header `Host`.
 
@@ -85,3 +85,4 @@ python apps/peer_node.py Huy 5002
    - Tin nhắn được lưu trữ cục bộ tại mỗi Peer (Immutable logs), đảm bảo tính riêng tư và đáp ứng đúng yêu cầu thiết kế không thể chỉnh sửa/xóa.
 
 ---
+**Lớp:** Kỹ thuật Máy tính - Đại học Bách Khoa TP.HCM
