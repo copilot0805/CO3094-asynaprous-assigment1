@@ -64,91 +64,107 @@
             <button id="send-btn" onclick="sendMessage()">Gửi</button>
         </div>
     </div>
-
     <script>
-        let myName = "";
-        let currentChannel = "Global";
-        let localChannelsState = {}; // Dùng để kiểm tra tin nhắn mới (Notification system)
+    let myName = "";
+    let currentChannel = "Global";
+    let localChannelsState = {};
 
-        async function pollData() {
-            try {
-                let res = await fetch('/api/poll');
-                let data = await res.json();
-                myName = data.my_name;
-                
-                renderSidebar(data.peers, data.channels);
-                renderChat(data.channels[currentChannel] || []);
-            } catch (e) { console.error("Mất kết nối tới Backend."); }
-        }
-
-        function renderSidebar(peers, channels) {
-            const list = document.getElementById('channel-list');
-            list.innerHTML = "";
+    async function pollData() {
+        try {
+            let res = await fetch('/api/poll');
+            let data = await res.json();
             
-            // Luôn có kênh Global
-            let allChannels = ["Global"];
-            // Thêm các Peer đang online vào danh sách kênh
-            peers.forEach(p => { if (p !== myName && !allChannels.includes(p)) allChannels.push(p); });
-            
-            allChannels.forEach(ch => {
-                let div = document.createElement('div');
-                div.className = "channel-item" + (ch === currentChannel ? " active" : "");
-                div.onclick = () => { currentChannel = ch; document.getElementById('header').innerText = `Kênh: ${ch}`; pollData(); };
-                
-                // Hệ thống thông báo (Notification): Có tin nhắn mới chưa đọc
-                let newMsgs = channels[ch] ? channels[ch].length : 0;
-                let oldMsgs = localChannelsState[ch] ? localChannelsState[ch].length : 0;
-                let notifHtml = (newMsgs > oldMsgs && ch !== currentChannel) ? `<span class="notification">New!</span>` : "";
-                
-                div.innerHTML = `${ch} ${notifHtml}`;
-                list.appendChild(div);
-            });
-            
-            // Cập nhật state nội bộ
-            localChannelsState = channels;
-        }
-
-        function renderChat(messages) {
-            const box = document.getElementById('chat-box');
-            // Kiểm tra xem có cần tự động cuộn xuống đáy không
-            const isScrolledToBottom = box.scrollHeight - box.clientHeight <= box.scrollTop + 10;
-            
-            box.innerHTML = "";
-            messages.forEach(m => {
-                let isMe = m.from === myName;
-                let html = `<div class="msg ${isMe ? 'me' : 'them'}">
-                                ${!isMe && currentChannel === 'Global' ? `<div class="sender-name">${m.from}</div>` : ''}
-                                ${m.msg}
-                            </div>`;
-                box.innerHTML += html;
-            });
-
-            if (isScrolledToBottom) {
-                box.scrollTop = box.scrollHeight; // Auto cuộn xuống
+            // Xử lý Access Control: Chưa đăng nhập bị đá văng về login.html
+            if (data.redirect) {
+                window.location.href = data.redirect;
+                return;
             }
-        }
+            
+            myName = data.my_name;
+            
+            // Hiển thị tên tài khoản lên góc trái
+            document.title = `Chat - ${myName}`;
+            let accInfo = document.getElementById('account-info');
+            if(!accInfo) {
+                let div = document.createElement('div');
+                div.id = 'account-info';
+                div.style = 'padding: 10px 15px; background: #0084ff; color: white; font-weight: bold; font-size: 14px;';
+                div.innerHTML = `👤 Tài khoản: ${myName}`;
+                document.getElementById('sidebar').prepend(div);
+            }
+            
+            renderSidebar(data.peers, data.channels);
+            renderChat(data.channels[currentChannel] || []);
+        } catch (e) { console.error("Mất kết nối tới Backend."); }
+    }
 
-        async function sendMessage() {
-            let input = document.getElementById('msg-input');
-            let msg = input.value.trim();
-            if (!msg) return;
+    function renderSidebar(peers, channels) {
+        const list = document.getElementById('channel-list');
+        list.innerHTML = "";
+        
+        let allChannels = ["Global"];
+        peers.forEach(p => { if (p !== myName && !allChannels.includes(p)) allChannels.push(p); });
+        
+        allChannels.forEach(ch => {
+            let div = document.createElement('div');
+            div.className = "channel-item" + (ch === currentChannel ? " active" : "");
+            div.onclick = () => { currentChannel = ch; document.getElementById('header').innerText = `Kênh: ${ch}`; pollData(); };
+            
+            let newMsgs = channels[ch] ? channels[ch].length : 0;
+            let oldMsgs = localChannelsState[ch] ? localChannelsState[ch].length : 0;
+            let notifHtml = (newMsgs > oldMsgs && ch !== currentChannel) ? `<span class="notification">New!</span>` : "";
+            
+            div.innerHTML = `${ch} ${notifHtml}`;
+            list.appendChild(div);
+        });
+        
+        localChannelsState = channels;
+    }
 
-            input.value = "";
-            await fetch('/api/send', {
-                method: 'POST',
-                body: JSON.stringify({ target: currentChannel, message: msg })
-            });
-            pollData(); // Cập nhật ngay lập tức
-        }
-
-        // Bắt sự kiện phím Enter
-        document.getElementById("msg-input").addEventListener("keypress", function(event) {
-            if (event.key === "Enter") { event.preventDefault(); document.getElementById("send-btn").click(); }
+    function renderChat(messages) {
+        const box = document.getElementById('chat-box');
+        const isScrolledToBottom = box.scrollHeight - box.clientHeight <= box.scrollTop + 10;
+        
+        box.innerHTML = "";
+        messages.forEach(m => {
+            let isMe = m.from === myName;
+            let html = `<div class="msg ${isMe ? 'me' : 'them'}">
+                            ${!isMe && currentChannel === 'Global' ? `<div class="sender-name">${m.from}</div>` : ''}
+                            ${m.msg}
+                        </div>`;
+            box.innerHTML += html;
         });
 
-        // Giao tiếp Non-blocking: Javascript liên tục kéo dữ liệu mỗi giây
-        setInterval(pollData, 1000);
-        pollData();
-    </script>
+        if (isScrolledToBottom) {
+            box.scrollTop = box.scrollHeight; 
+        }
+    }
+
+    async function sendMessage() {
+        let input = document.getElementById('msg-input');
+        let msg = input.value.trim();
+        if (!msg) return;
+
+        input.value = "";
+        let res = await fetch('/api/send', {
+            method: 'POST',
+            body: JSON.stringify({ target: currentChannel, message: msg })
+        });
+        let data = await res.json();
+        // Nếu lúc bấm gửi bị lỗi chưa đăng nhập
+        if (data.error === "Unauthorized") {
+            window.location.href = '/login.html';
+        } else {
+            pollData(); 
+        }
+    }
+
+    document.getElementById("msg-input").addEventListener("keypress", function(event) {
+        if (event.key === "Enter") { event.preventDefault(); document.getElementById("send-btn").click(); }
+    });
+
+    setInterval(pollData, 1000);
+    pollData();
+</script>
 </body>
 </html>
