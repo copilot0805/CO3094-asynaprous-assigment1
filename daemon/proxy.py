@@ -172,8 +172,7 @@ def resolve_routing_policy(hostname, routes):
         
     else:
         # Nếu có nhiều Server -> Áp dụng policy (Mặc định thầy yêu cầu round-robin)
-        # if policy == 'round-robin':
-        if policy == 'round': # "round" mean "round-robin"
+        if policy == "round-robin":
             # Khởi tạo bộ nhớ cho Host này nếu chưa có
             if hostname not in ROUND_ROBIN_STATE:
                 ROUND_ROBIN_STATE[hostname] = 0
