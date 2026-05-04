@@ -17,29 +17,33 @@ Hệ thống Chat lai (Hybrid Chat) được xây dựng trên nền tảng fram
 
 ---
 
-## 🚀 Hướng dẫn chạy từng phần
+## 🚀 Hướng dẫn chạy từng phần (luồng demo mới qua Proxy)
 
 ### 2.1. Proxy Server (Điều phối tải)
 Phần này mô phỏng một Reverse Proxy có khả năng cân bằng tải (Load Balancing) theo thuật toán Round-Robin.
 
-1. **Cấu hình**: Chỉnh sửa file cấu hình proxy (thường là `proxy.conf`) để định nghĩa các backend.
+1. **Giữ nguyên cấu hình**: Không chỉnh sửa file cấu hình ở [config/proxy.conf](config/proxy.conf).
 2. **Lệnh chạy**:
    ```bash
    python start_proxy.py --server-port 8080
    ```
-3. **Chức năng**: Proxy sẽ lắng nghe tại cổng 8080 và điều hướng yêu cầu đến các máy chủ backend dựa trên Header `Host`.
+3. **Chức năng**: Proxy lắng nghe tại cổng 8080 và điều hướng dựa trên Header `Host`:
+   - `app1.local` → backend tại `127.0.0.1:9001`
+   - `app2.local` → backend pool `127.0.0.1:9002` và `127.0.0.1:9003` (round-robin)
+
+> **Gợi ý test Host header**: có thể trỏ `app1.local`, `app2.local` về `127.0.0.1` trong file hosts của hệ điều hành, hoặc dùng công cụ test (Postman/curl) để set header `Host` tương ứng.
 
 ### 2.2. RESTful Backend (Máy chủ Tracker)
 Giai đoạn khởi tạo của hệ thống Chat, đóng vai trò là máy chủ tập trung (Centralized Server) để quản lý các Peer.
 
 1. **Lệnh chạy**:
    ```bash
-   python start_sampleapp.py --server-port 8000
+   python start_sampleapp.py --server-port 9001
    ```
 2. **Các API chính**:
    - `POST /submit-info`: Peer đăng ký IP/Port.
    - `GET /get-list`: Lấy danh sách các Peer đang hoạt động.
-3. **Kiểm tra**: Sử dụng Postman để gọi thử các API trên cổng 8000.
+3. **Kiểm tra qua Proxy**: gửi request đến `http://127.0.0.1:8080` và đặt header `Host: app1.local`.
 
 ### 2.3. Hybrid Chat Application (Ứng dụng Chat lai)
 Đây là phần quan trọng nhất, kết hợp cả Client-Server và P2P. Mỗi người dùng khi chạy sẽ khởi tạo một Web Server riêng để phục vụ GUI và nhận tin nhắn.
@@ -60,6 +64,8 @@ Mở thêm một Terminal mới và chạy:
 python apps/peer_node.py Huy 5002
 ```
 *Truy cập Web tại: `http://127.0.0.1:5002/login.html` (Yêu cầu đăng nhập với tên "Huy" để được cấp Cookie).*
+
+> **Lưu ý để Tracker đi qua Proxy**: trong [apps/peer_node.py](apps/peer_node.py), đặt `TRACKER_URL` trỏ về proxy `http://127.0.0.1:8080` và thêm header `Host: app1.local` cho các request đăng ký/lấy danh sách (hoặc dùng `http://app1.local:8080` nếu đã cấu hình hosts).
 
 **Tính năng P2P:**
 - Khi Ken nhắn cho Huy, gói tin sẽ được gửi trực tiếp từ cổng 5001 sang cổng 5002 (P2P Direct).
