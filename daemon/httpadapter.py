@@ -144,12 +144,45 @@ class HttpAdapter:
 
         # TODO Handle the request asynchronously
         try:
-            # Read the raw request data from the client (asynchronously)
-            msg = await reader.read(4096)
-            if not msg:
+            # Read headers first (until \r\n\r\n)
+            data = b""
+            while b"\r\n\r\n" not in data:
+                chunk = await reader.read(4096)
+                if not chunk:
+                    break
+                data += chunk
+
+            if not data:
                 print("[HttpAdapter] No data received from {}".format(addr))
                 return
-            
+
+            # Split header/body and read the rest of body by Content-Length
+            if b"\r\n\r\n" in data:
+                header_bytes, body = data.split(b"\r\n\r\n", 1)
+                header_bytes += b"\r\n\r\n"
+            else:
+                header_bytes, body = data, b""
+
+            header_text = header_bytes.decode("utf-8", errors="ignore")
+            content_length = 0
+            for line in header_text.split("\r\n"):
+                if line.lower().startswith("content-length:"):
+                    try:
+                        content_length = int(line.split(":", 1)[1].strip())
+                    except ValueError:
+                        content_length = 0
+                    break
+
+            remaining = content_length - len(body)
+            while remaining > 0:
+                chunk = await reader.read(min(4096, remaining))
+                if not chunk:
+                    break
+                body += chunk
+                remaining -= len(chunk)
+
+            msg = header_bytes + body
+
             # Decoding the raw request data and preparing the Request object
             req.prepare(msg.decode("utf-8", errors="ignore"), routes=self.routes)
 

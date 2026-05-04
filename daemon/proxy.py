@@ -60,7 +60,9 @@ def forward_request(host, port, request):
 
     try:
         backend.connect((host, port))
-        backend.sendall(request.encode('utf-8'))
+        if isinstance(request, str):
+            request = request.encode("utf-8")
+        backend.sendall(request)
 
         response = b""
         while True:
@@ -214,42 +216,78 @@ def handle_client(ip, port, conn, addr, routes):
     :params routes (dict): dictionary mapping hostnames and location.
     """
 
-    # request = conn.recv(1024).decode()
-    request = conn.recv(4096).decode('utf-8', errors='ignore')
-    if not request:
+    # Đọc toàn bộ request (header + body) để tránh bị cắt gói
+    request_bytes = b""
+    header_end = -1
+    while header_end == -1:
+        chunk = conn.recv(4096)
+        if not chunk:
+            break
+        request_bytes += chunk
+        header_end = request_bytes.find(b"\r\n\r\n")
+
+    if not request_bytes:
         return # Nếu khách kết nối mà không gửi gì thì ngắt luôn
 
-    # # Extract hostname
-    # for line in request.splitlines():
-    #     if line.lower().startswith('host:'):
-    #         hostname = line.split(':', 1)[1].strip()
+    # Tách phần header và body (nếu có)
+    if header_end != -1:
+        header_bytes, body = request_bytes.split(b"\r\n\r\n", 1)
+        header_bytes += b"\r\n\r\n"
+    else:
+        header_bytes, body = request_bytes, b""
+
+    header_text = header_bytes.decode("iso-8859-1", errors="ignore")
+
+    # Tìm Content-Length để biết cần đọc thêm bao nhiêu byte body
+    content_length = 0
+    for line in header_text.split("\r\n"):
+        if line.lower().startswith("content-length:"):
+            try:
+                content_length = int(line.split(":", 1)[1].strip())
+            except ValueError:
+                content_length = 0
+            break
+
+    # Đọc tiếp phần body còn thiếu (nếu body bị cắt do phân mảnh TCP)
+    remaining = content_length - len(body)
+    while remaining > 0:
+        chunk = conn.recv(min(4096, remaining))
+        if not chunk:
+            break
+        body += chunk
+        remaining -= len(chunk)
+
+    request_bytes = header_bytes + body
+
     # Extract hostname
     hostname = ""
-    for line in request.splitlines():
+    for line in header_text.split("\r\n"):
         if line.lower().startswith('host:'):
             # Lấy phần tên phía sau chữ 'Host:' (VD: ' app2.local:8080')
             raw_host = line.split(':', 1)[1].strip()
-            
-            # Cắt bỏ phần Port (nếu có) để chỉ lấy 'app2.local'
-            if ':' in raw_host:
-                hostname = raw_host.split(':')[0]
-            else:
-                hostname = raw_host
+            hostname = raw_host
             break # Tìm thấy rồi thì thoát vòng lặp cho nhanh
 
-    print("[Proxy] {} at Host: {}".format(addr, hostname))
+    # Nếu Host có kèm port (app2.local:8080) thì thử bỏ port để map route
+    resolved_hostname = hostname
+    if resolved_hostname not in routes and ":" in resolved_hostname:
+        stripped_host = resolved_hostname.split(":", 1)[0]
+        if stripped_host in routes:
+            resolved_hostname = stripped_host
+
+    print("[Proxy] {} at Host: {}".format(addr, resolved_hostname))
 
     # Resolve the matching destination in routes and need conver port
     # to integer value
-    resolved_host, resolved_port = resolve_routing_policy(hostname, routes)
+    resolved_host, resolved_port = resolve_routing_policy(resolved_hostname, routes)
     try:
         resolved_port = int(resolved_port)
     except ValueError:
         print("Not a valid integer")
 
     if resolved_host:
-        print("[Proxy] Host name {} is forwarded to {}:{}".format(hostname,resolved_host, resolved_port))
-        response = forward_request(resolved_host, resolved_port, request)        
+        print("[Proxy] Host name {} is forwarded to {}:{}".format(resolved_hostname,resolved_host, resolved_port))
+        response = forward_request(resolved_host, resolved_port, request_bytes)        
     else:
         response = (
             "HTTP/1.1 404 Not Found\r\n"
