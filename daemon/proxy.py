@@ -259,6 +259,9 @@ def handle_client(ip, port, conn, addr, routes):
 
     request_bytes = header_bytes + body
 
+    # Extract method/path for logging
+    request_line = header_text.split("\r\n", 1)[0] if header_text else ""
+
     # Extract hostname
     hostname = ""
     for line in header_text.split("\r\n"):
@@ -275,7 +278,7 @@ def handle_client(ip, port, conn, addr, routes):
         if stripped_host in routes:
             resolved_hostname = stripped_host
 
-    print("[Proxy] {} at Host: {}".format(addr, resolved_hostname))
+    print("[Proxy] {} {} Host: {}".format(addr, request_line, resolved_hostname))
 
     # Resolve the matching destination in routes and need conver port
     # to integer value

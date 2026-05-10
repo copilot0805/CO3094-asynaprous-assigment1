@@ -13,24 +13,47 @@
 #
 
 
-"""
-app.sampleapp
-~~~~~~~~~~~~~~~~~
+"""Sample RESTful app and tracker service for the assignment."""
 
-"""
-
-import sys
 import os
-import importlib.util
 import json
+import sqlite3
 
-from   daemon.asynaprous import AsynapRous
+from daemon.asynaprous import AsynapRous
 
 app = AsynapRous()
 
-# Dictionary to keep track of active peers 
-# Structure: { "username": {"ip": "127.0.0.1", "port": 5001} }
-ACTIVE_PEERS = {}
+# SQLite shared state (standard library, no external deps)
+DB_PATH = os.path.join(os.path.dirname(__file__), "..", "db", "peers.db")
+
+def init_db():
+    """Initialize the SQLite database for peer tracking."""
+    os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
+    with sqlite3.connect(DB_PATH) as conn:
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS peers (
+                username TEXT PRIMARY KEY,
+                ip TEXT NOT NULL,
+                port INTEGER NOT NULL
+            )
+            """
+        )
+
+def upsert_peer(username, ip, port):
+    """Insert or update a peer in the database."""
+    with sqlite3.connect(DB_PATH) as conn:
+        conn.execute(
+            "INSERT INTO peers(username, ip, port) VALUES(?, ?, ?)"
+            " ON CONFLICT(username) DO UPDATE SET ip=excluded.ip, port=excluded.port",
+            (username, ip, port),
+        )
+
+def get_all_peers():
+    """Return all peers from the database."""
+    with sqlite3.connect(DB_PATH) as conn:
+        rows = conn.execute("SELECT username, ip, port FROM peers").fetchall()
+    return {row[0]: {"ip": row[1], "port": row[2]} for row in rows}
 
 @app.route('/login', methods=['POST'])
 def login(request, *args, **kwargs):    
@@ -45,7 +68,10 @@ def login(request, *args, **kwargs):
     """
     actual_body = request.body
     print(f"[SampleApp] Logging in with request body: {actual_body}")
-    data = {"message": "Welcome to the RESTful TCP WebApp", "received": actual_body}
+    data = {
+        "message": "Welcome to the RESTful TCP WebApp",
+        "received": actual_body,
+    }
 
     # Convert to JSON string
     json_str = json.dumps(data)
@@ -53,6 +79,7 @@ def login(request, *args, **kwargs):
 
 @app.route("/echo", methods=["POST"])
 def echo(request, *args, **kwargs):
+    """Echo back JSON payloads or report an error."""
     actual_body = request.body
     print(f"[SampleApp] received body {actual_body}")
 
@@ -61,7 +88,7 @@ def echo(request, *args, **kwargs):
             message = json.loads(actual_body)
         else:
             message = "No body received"
-        data = {"received": message }
+        data = {"received": message}
         json_str = json.dumps(data)
         return (json_str.encode("utf-8"))
     except json.JSONDecodeError:
@@ -93,7 +120,7 @@ async def hello(request, *args, **kwargs):
 @app.route('/submit-info', methods=['POST'])
 def submit_info(request, *args, **kwargs):
     """
-    Peer Registration: Nhận IP và Port từ ứng dụng chat và lưu vào danh bạ.
+    Register a peer and store its IP/port in the tracker.
     """
     # Vì HttpAdapter truyền đối tượng Request vào, ta lấy body trực tiếp từ nó!
     actual_body = request.body
@@ -103,12 +130,12 @@ def submit_info(request, *args, **kwargs):
         data = json.loads(actual_body)
         username = data.get('username')
         if username:
-            ACTIVE_PEERS[username] = {
-                "ip": data.get('ip'),
-                "port": data.get('port')
+            upsert_peer(username, data.get('ip'), data.get('port'))
+            print(f"[Tracker] Registered peer: {username}")
+            response_data = {
+                "message": f"Peer {username} registered successfully",
+                "status": "success",
             }
-            print(f"[Tracker] Registered peer: {username} at {ACTIVE_PEERS[username]}")
-            response_data = {"message": f"Peer {username} registered successfully", "status": "success"}
         else:
             response_data = {"error": "Missing username in JSON payload"}
     except json.JSONDecodeError:
@@ -118,17 +145,25 @@ def submit_info(request, *args, **kwargs):
 
     return response_data
 
+@app.route('/add-list', methods=['POST'])
+def add_list(request, *args, **kwargs):
+    """
+    Compatibility endpoint: behaves like submit-info for peer registration.
+    """
+    return submit_info(request, *args, **kwargs)
+
 @app.route('/get-list', methods=['GET'])
 def get_list(request, *args, **kwargs):
     """
     Peer Discovery: Return the list of active peers to the chat application.
     """
-    print(f"[Tracker] Received get-list request. Now ACTIVE_PEERS: {len(ACTIVE_PEERS)}")
-    # CHỈ CẦN TRẢ VỀ DICT:
-    return ACTIVE_PEERS
+    peers = get_all_peers()
+    print(f"[Tracker] Received get-list request. Now ACTIVE_PEERS: {len(peers)}")
+    return peers
 
 def create_sampleapp(ip, port):
-    # Prepare and launch the RESTful application
+    """Prepare and launch the RESTful application."""
+    init_db()
     app.prepare_address(ip, port)
     app.run()
 
