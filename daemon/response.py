@@ -21,8 +21,8 @@ based on incoming requests.
 The current version supports MIME type detection, content loading and header formatting
 """
 import datetime
-import os
 import mimetypes
+import os
 from .dictionary import CaseInsensitiveDict
 
 BASE_DIR = ""
@@ -72,7 +72,6 @@ class Response():
         "elapsed",
         "request",
         "body",
-        "reason",
     ]
 
 
@@ -208,7 +207,7 @@ class Response():
             self.headers = CaseInsensitiveDict()
         self.headers['Content-Length'] = str(len(self._content)) if self._content else "0"
         self.headers['Connection'] = "close"
-        self.headers['Server'] = "AsynapRous/CE-Ken" # dummy server name
+        self.headers['Server'] = "AsynapRous/CE-Ken"  # dummy server name
 
         # --- CODE MỚI ĐỂ XỬ LÝ COOKIE (SET-COOKIE) ---
         # Nếu trong quá trình xử lý (ví dụ lúc đăng nhập), chúng ta có nhét dữ liệu

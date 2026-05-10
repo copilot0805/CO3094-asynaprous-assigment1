@@ -134,7 +134,9 @@ class HttpAdapter:
         :param routes (dict): The route mapping for dispatching requests.
         """
         addr = writer.get_extra_info("peername")
-        print("[HttpAdapter] Invoke handle_client_coroutine connection {})".format(addr))
+        print(
+            "[HttpAdapter] Invoke handle_client_coroutine connection {})".format(addr)
+        )
 
         # Request handler
         req = self.request
@@ -196,7 +198,39 @@ class HttpAdapter:
 
                 # Temporarily store the hook result (EX: {"message": "login success"}) in the variable _content
                 import json
-                if isinstance(hook_result, dict):
+                if isinstance(hook_result, tuple):
+                    body = hook_result[0] if len(hook_result) > 0 else ""
+                    cookies = hook_result[1] if len(hook_result) > 1 else None
+                    status_code = hook_result[2] if len(hook_result) > 2 else None
+                    headers = hook_result[3] if len(hook_result) > 3 else None
+                    reason = hook_result[4] if len(hook_result) > 4 else None
+
+                    if isinstance(body, dict):
+                        resp._content = json.dumps(body).encode("utf-8")
+                    else:
+                        resp._content = str(body).encode("utf-8")
+
+                    if cookies:
+                        resp.cookies.update(cookies)
+                    if headers:
+                        resp.headers.update(headers)
+                    if status_code:
+                        resp.status_code = status_code
+                        if reason:
+                            resp.reason = reason
+                        else:
+                            status_reasons = {
+                                200: "OK",
+                                201: "Created",
+                                204: "No Content",
+                                400: "Bad Request",
+                                401: "Unauthorized",
+                                403: "Forbidden",
+                                404: "Not Found",
+                                500: "Internal Server Error",
+                            }
+                            resp.reason = status_reasons.get(status_code, resp.reason)
+                elif isinstance(hook_result, dict):
                     resp._content = json.dumps(hook_result).encode("utf-8")
                 else:
                     resp._content = str(hook_result).encode("utf-8")
@@ -209,7 +243,7 @@ class HttpAdapter:
             await writer.drain()
 
         except Exception as e:
-                print("[HttpAdapter] Error handling client {}: {}".format(addr, e))
+            print("[HttpAdapter] Error handling client {}: {}".format(addr, e))
 
     # @property
     # def extract_cookies(self, req, resp):

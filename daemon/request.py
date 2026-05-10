@@ -20,8 +20,8 @@ request settings (cookies, auth, proxies).
 import base64
 from .dictionary import CaseInsensitiveDict
 
-class Request():
-    """The fully mutable "class" `Request <Request>` object,
+class Request:
+    """Represent and parse an incoming HTTP request.
     containing the exact bytes that will be sent to the server.
 
     Instances are generated from a "class" `Request <Request>` object, and
@@ -49,6 +49,7 @@ class Request():
         "body",
         "routes",
         "hook",
+        "auth",
     ]
 
     def __init__(self):
@@ -62,6 +63,8 @@ class Request():
         self.path = None        
         # The cookies set used to create Cookie header
         self.cookies = None
+        #: Parsed Authorization credentials (Basic)
+        self.auth = None
         #: request body to send to the server.
         self.body = None
         # The raw header
@@ -74,6 +77,7 @@ class Request():
         self.hook = None
 
     def extract_request_line(self, request):
+        """Extract method, path, and version from the request line."""
         try:
             lines = request.splitlines()
             first_line = lines[0]
@@ -149,10 +153,10 @@ class Request():
 
         # take the raw cookies from the dictionary of headers
         cookies_str = self.headers.get('cookie', '')
-        self.cookies = {} # parse cookies_str into self.cookies dictionary
+        self.cookies = {}  # parse cookies_str into self.cookies dictionary
             #
             #  TODO: implement the cookie function here
-            #        by parsing the header            #
+            #        by parsing the header
         if cookies_str:
             pairs = cookies_str.split(';')
             for pair in pairs:
@@ -163,44 +167,48 @@ class Request():
                     self.cookies[key.strip()] = value.strip()
             print(f"[Request] Parsed cookies: {self.cookies}")
 
-            auth_header = self.headers.get('authorization', '')
-            if auth_header.lower().startswith('basic '):
-                encoded_credentials = auth_header.split(' ', 1)[1]
-                try:
-                    decoded_str = base64.b64decode(encoded_credentials).decode('utf-8')
-                    username, password = decoded_str.split(':', 1)
-                    self.auth = (username, password)
-                    print(f"[Request] authenticated user: {username}")
-                except Exception as e:
-                    print(f"[Request] Failed to decode Basic auth credentials: {e}")
+        auth_header = self.headers.get('authorization', '')
+        if auth_header.lower().startswith('basic '):
+            encoded_credentials = auth_header.split(' ', 1)[1]
+            try:
+                decoded_str = base64.b64decode(encoded_credentials).decode('utf-8')
+                username, password = decoded_str.split(':', 1)
+                self.auth = (username, password)
+                print(f"[Request] authenticated user: {username}")
+            except Exception as e:
+                print(f"[Request] Failed to decode Basic auth credentials: {e}")
 
         return
 
     def prepare_body(self, data, files, json=None):
+        """Prepare the request body and headers."""
         self.prepare_content_length(self.body)
         self.body = data
         #
         # TODO prepare the request authentication
         #
-	# self.auth = ...
+        # self.auth = ...
         return
 
 
     def prepare_content_length(self, body):
+        """Set the Content-Length header for the body."""
         self.headers["Content-Length"] = "0"
         #
         # TODO prepare the request authentication
         #
-	# self.auth = ...
+        # self.auth = ...
         return
 
 
     def prepare_auth(self, auth, url=""):
+        """Prepare authorization information."""
         #
         # TODO prepare the request authentication
         #
-	# self.auth = ...
+        # self.auth = ...
         pass
 
     def prepare_cookies(self, cookies):
-            self.headers["Cookie"] = cookies
+        """Set the Cookie header."""
+        self.headers["Cookie"] = cookies
