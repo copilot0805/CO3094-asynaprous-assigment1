@@ -40,23 +40,26 @@ Usage Example:
 
 """
 
+import asyncio
+import inspect
+import selectors
 import socket
 import threading
 import argparse
 
-import asyncio
-import inspect
+"""
+# import asyncio
+# import inspect
+"""
 
 from .response import *
 from .httpadapter import HttpAdapter
-from .dictionary import CaseInsensitiveDict
 
-import selectors
 sel = selectors.DefaultSelector()
 
-#mode_async = "callback"
+# mode_async = "callback"
 mode_async = "coroutine"
-#mode_async = "threading"
+# mode_async = "threading"
 
 def handle_client(ip, port, conn, addr, routes):
     """
@@ -102,7 +105,11 @@ async def handle_client_coroutine(reader, writer, ip, port, routes):
     :param write (Stream write): Stream write wrapper.
     """
     addr = writer.get_extra_info("peername")
-    print("[Backend] Invoke handle_client_coroutine accepted connection from {}".format(addr))
+    print(
+        "[Backend] Invoke handle_client_coroutine accepted connection from {}".format(
+            addr
+        )
+    )
 
     daemon = HttpAdapter(ip, port, None, addr, routes)
     
@@ -117,17 +124,20 @@ async def handle_client_coroutine(reader, writer, ip, port, routes):
         print("[Backend] Connection to {} closed".format(addr))
 
 
-async def async_server(ip="0.0.0.0", port=7000, routes={}):
+async def async_server(ip="0.0.0.0", port=7000, routes=None):
+    """Run the asyncio server loop."""
     print("[Backend] async_server **ASYNC** listening on port {}".format(port))
-    if routes != {}:
+    if routes:
         print("[Backend] route settings")
         for key, value in routes.items():
-            isCoFunc = "**ASYNC**" if inspect.iscoroutinefunction(value) else ""
-            print(f"   + ('{key[0]}', '{key[1]}'): {isCoFunc}{value.__name__}")
+            is_co_func = "**ASYNC**" if inspect.iscoroutinefunction(value) else ""
+            print(
+                f"   + ('{key[0]}', '{key[1]}'): {is_co_func}{value.__name__}"
+            )
 
     # Create Closure function to pass routes to the handler
     async def client_connected_cb(reader, writer):
-        await handle_client_coroutine(reader, writer, ip, port, routes)
+        await handle_client_coroutine(reader, writer, ip, port, routes or {})
     
     # Start event loop of Asyncio server
     server = await asyncio.start_server(client_connected_cb, ip, port)
@@ -151,9 +161,8 @@ def run_backend(ip, port, routes):
     print("[Backend] run_backend with routes={}".format(routes))
     # Process async stream for registering the service and terminate
     if mode_async == "coroutine":
-
-       asyncio.run(async_server(ip, port, routes))
-       return
+        asyncio.run(async_server(ip, port, routes))
+        return
 
     # Process socket object
     server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -163,13 +172,17 @@ def run_backend(ip, port, routes):
         server.listen(50)
 
         print("[Backend] Listening on port {}".format(port))
-        if routes != {}:
+        if routes:
             print("[Backend] route settings")
             for key, value in routes.items():
-               isCoFunc = ""
-               if inspect.iscoroutinefunction(value):
-                  isCoFunc += "**ASYNC** "
-               print("   + ('{}', '{}'): {}{}".format(key[0], key[1], isCoFunc, str(value)))
+                is_co_func = ""
+                if inspect.iscoroutinefunction(value):
+                    is_co_func = "**ASYNC** "
+                print(
+                    "   + ('{}', '{}'): {}{}".format(
+                        key[0], key[1], is_co_func, str(value)
+                    )
+                )
 
         if mode_async == "callback":
             sel.register(server, selectors.EVENT_READ, (handle_client_callback, ip, port, routes))
@@ -193,35 +206,28 @@ def run_backend(ip, port, routes):
             #            this provider simplify by using mode selection variable
             #            change global variable mode_async to select the mechanism
             if mode_async == "callback":
-               # Callback implementation - Event driven architecture
-               server.setblocking(False)
+                # Callback implementation - Event driven architecture
+                server.setblocking(False)
 
-               events = sel.select(timeout=None)
-               for key, mask in events:
-                   callback, ip, port, routes = key.data
-                   callback(key.fileobj, ip, port, conn, addr, routes)
+                events = sel.select(timeout=None)
+                for key, mask in events:
+                    callback, ip, port, routes = key.data
+                    callback(key.fileobj, ip, port, conn, addr, routes)
 
             else:
                 # Baseline multi-thread implementation
                 #client_thread = threading.Thread...
                 client_thread = threading.Thread(
-                   target=handle_client, 
-                   args=(ip, port, conn, addr, routes),
-                   daemon=True
+                    target=handle_client,
+                    args=(ip, port, conn, addr, routes),
+                    daemon=True,
                 )
                 client_thread.start()
 
 
     except socket.error as e:
-      print("Socket error: {}".format(e))
+        print("Socket error: {}".format(e))
 
-def create_backend(ip, port, routes={}):
-    """
-    Entry point for creating and running the backend server.
-
-    :param ip (str): IP address to bind the server.
-    :param port (int): Port number to listen on.
-    :param routes (dict, optional): Dictionary of route handlers. Defaults to empty dict.
-    """
-
-    run_backend(ip, port, routes)
+def create_backend(ip, port, routes=None):
+    """Entry point for creating and running the backed server."""
+    run_backend(ip, port, routes or {})

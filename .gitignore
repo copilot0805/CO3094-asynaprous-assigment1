@@ -19,6 +19,7 @@ ENV/
 *.tmp
 *.pid
 *.lock
+peers.db
 
 # IDE
 .vscode/

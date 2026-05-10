@@ -15,11 +15,13 @@
 <body>
     <div class="login-box">
         <h2 style="margin-top: 0; color: #333;">🔐 Đăng nhập Node</h2>
-        <p style="font-size: 13px; color: #666; margin-bottom: 20px;">Vui lòng nhập Username trùng khớp với tên Node lúc bạn chạy ở Terminal.</p>
+        <p style="font-size: 13px; color: #666; margin-bottom: 6px;">Vui lòng nhập Username trùng khớp với tên Node lúc bạn chạy ở Terminal.</p>
+        <p style="font-size: 12px; color: #999; margin-top: 0;">Mật khẩu mặc định: <strong>password</strong></p>
         
         <!-- Dùng JS để kiểm soát form thay vì HTML form thông thường -->
         <form id="login-form">
             <input id="username" type="text" placeholder="Ví dụ: Ken, Huy..." required autocomplete="off">
+            <input id="password" type="password" placeholder="Mật khẩu" required autocomplete="off">
             <button type="submit">Vào Phòng Chat</button>
         </form>
         
@@ -31,6 +33,7 @@
             e.preventDefault(); // Chặn việc tự động tải lại trang
             
             const user = document.getElementById('username').value.trim();
+            const pass = document.getElementById('password').value;
             const errorBox = document.getElementById('error-msg');
             errorBox.style.display = "none";
             
@@ -38,15 +41,16 @@
                 // Gọi API ngầm lên Server
                 let res = await fetch('/api/login', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': 'Basic ' + btoa(`${user}:${pass}`)
+                    },
                     body: JSON.stringify({ username: user })
                 });
                 
                 let data = await res.json();
                 
                 if (data.status === "ok") {
-                    // Nhận Tên và Giá trị Cookie duy nhất từ Server
-                    document.cookie = data.cookie_name + "=" + data.cookie_val + "; path=/";
                     window.location.href = "/index.html";
                 } else {
                     // Hiện lỗi đỏ nếu nhập sai
