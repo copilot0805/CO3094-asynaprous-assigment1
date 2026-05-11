@@ -42,10 +42,9 @@
                 let res = await fetch('/api/login', {
                     method: 'POST',
                     headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': 'Basic ' + btoa(`${user}:${pass}`)
+                        'Content-Type': 'application/json'
                     },
-                    body: JSON.stringify({ username: user })
+                    body: JSON.stringify({ username: user, password: pass })
                 });
                 
                 let data = await res.json();

@@ -1,5 +1,6 @@
 """Peer node for the hybrid chat application."""
 
+import base64
 import json
 import os
 import sys
@@ -22,8 +23,39 @@ app = AsynapRous()
 
 CHANNELS = {"Global": []}
 ACTIVE_PEERS = {}
-AUTH_REALM = "AsynapRous"
 BASIC_PASSWORD = "password"
+
+
+def _session_cookie_name():
+    return f"session_{MY_PORT}"
+
+
+def _encode_cookie_value(username: str, password: str) -> str:
+    """Encode credentials into a cookie-safe Base64 string.
+
+    Note: Base64 is NOT encryption; it is only encoding.
+    """
+    raw = f"{username}:{password}".encode("utf-8")
+    # Use URL-safe alphabet to avoid '+' and '/' in cookies.
+    encoded = base64.urlsafe_b64encode(raw).decode("ascii")
+    # Remove '=' padding to keep cookie compact.
+    return encoded.rstrip("=")
+
+
+def _decode_cookie_value(cookie_val: str):
+    """Decode cookie value back to (username, password). Returns None if invalid."""
+    try:
+        if not cookie_val:
+            return None
+        # Restore padding
+        padded = cookie_val + "=" * ((4 - (len(cookie_val) % 4)) % 4)
+        decoded = base64.urlsafe_b64decode(padded.encode("ascii")).decode("utf-8")
+        if ":" not in decoded:
+            return None
+        username, password = decoded.split(":", 1)
+        return username, password
+    except Exception:
+        return None
 
 
 def parse_json_body(request):
@@ -87,50 +119,42 @@ def send_http_p2p_worker(target_ip, target_port, channel, msg):
 # API XỬ LÝ ĐĂNG NHẬP (TASK 2.2) - BASIC + COOKIE AUTH
 # =================================================================
 def build_unauthorized_response(message="Unauthorized"):
-    """Build a 401 response with WWW-Authenticate header."""
+    """Build a 401 response for cookie-based authentication."""
     return (
         {"error": "Unauthorized", "message": message, "redirect": "/login.html"},
         None,
         401,
         {
-            "WWW-Authenticate": f"Basic realm=\"{AUTH_REALM}\"",
             "Content-Type": "application/json",
         },
     )
 
-def is_basic_authenticated(request):
-    """Return True if Authorization header matches this peer."""
-    return getattr(request, "auth", None) == (MY_NAME, BASIC_PASSWORD)
-
 
 def is_cookie_authenticated(request):
-    """Return True if session cookie matches this peer."""
+    """Return True if session cookie decodes to valid credentials."""
     if hasattr(request, "cookies") and request.cookies:
-        cookie_name = f"session_{MY_PORT}"
-        session = request.cookies.get(cookie_name)
-        if session == f"user_{MY_NAME}_logged_in":
+        cookie_val = request.cookies.get(_session_cookie_name())
+        creds = _decode_cookie_value(cookie_val)
+        if creds == (MY_NAME, BASIC_PASSWORD):
             return True
     return False
 
 
 def is_authenticated(request):
-    """Return True if either cookie or basic auth is valid."""
-    return is_cookie_authenticated(request) or is_basic_authenticated(request)
+    """Return True if cookie auth is valid."""
+    return is_cookie_authenticated(request)
 
 
 @app.route('/api/login', methods=['POST'])
 def api_login(request, *args, **kwargs):
     """Handle login and set session cookie on success."""
-    username = ""
-    if is_basic_authenticated(request):
-        username = MY_NAME
-    else:
-        data = parse_json_body(request)
-        username = data.get("username", "")
+    data = parse_json_body(request)
+    username = data.get("username", "")
+    password = data.get("password", "")
 
-    if username == MY_NAME:
-        cookie_name = f"session_{MY_PORT}"
-        cookie_val = f"user_{username}_logged_in"
+    if username == MY_NAME and password == BASIC_PASSWORD:
+        cookie_name = _session_cookie_name()
+        cookie_val = _encode_cookie_value(username, password)
         return (
             {"status": "ok", "message": "Logged in"},
             {cookie_name: cookie_val},
@@ -268,6 +292,6 @@ if __name__ == "__main__":
     register_to_tracker()
     print(
         f"[*] Node {MY_NAME} chay o cong {MY_PORT}. "
-        f"Browser: http://{MY_IP}:{MY_PORT}/index.html"
+        f"Browser: http://{MY_IP}:{MY_PORT}/login.html"
     )
     app.run()

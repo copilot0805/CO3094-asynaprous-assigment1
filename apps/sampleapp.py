@@ -18,6 +18,9 @@
 import os
 import json
 import sqlite3
+import atexit
+import signal
+import sys
 
 from daemon.asynaprous import AsynapRous
 
@@ -25,6 +28,59 @@ app = AsynapRous()
 
 # SQLite shared state (standard library, no external deps)
 DB_PATH = os.path.join(os.path.dirname(__file__), "..", "db", "peers.db")
+RESET_DB_ON_STARTUP = os.getenv("ASYNAPROUS_RESET_TRACKER_DB", "1") != "0"
+
+
+def reset_db_on_startup():
+    """Remove any existing DB file before initializing the tracker.
+
+    This prevents stale peers from previous runs when the process was force-killed
+    and exit handlers (atexit/signal) did not get a chance to run.
+    """
+    if not RESET_DB_ON_STARTUP:
+        return
+
+    try:
+        if os.path.exists(DB_PATH):
+            os.remove(DB_PATH)
+            print(f"[Tracker] Reset DB file on startup: {DB_PATH}")
+    except Exception as e:
+        print(f"[Tracker] Failed to reset DB file {DB_PATH} on startup: {e}")
+
+
+def cleanup_db():
+    """Remove the peer tracking DB on process exit.
+
+    Notes:
+    - This will run on graceful shutdown paths (e.g., Ctrl+C / SIGTERM / normal exit).
+    - If the terminal is force-killed, Python may not get a chance to run cleanup.
+    """
+    try:
+        if os.path.exists(DB_PATH):
+            os.remove(DB_PATH)
+            print(f"[Tracker] Cleaned up DB file: {DB_PATH}")
+    except Exception as e:
+        print(f"[Tracker] Failed to remove DB file {DB_PATH}: {e}")
+
+
+def _install_exit_handlers():
+    atexit.register(cleanup_db)
+
+    def _handle_signal(signum, frame):
+        cleanup_db()
+        raise SystemExit(0)
+
+    try:
+        signal.signal(signal.SIGINT, _handle_signal)
+    except Exception:
+        pass
+    try:
+        signal.signal(signal.SIGTERM, _handle_signal)
+    except Exception:
+        pass
+
+
+_install_exit_handlers()
 
 def init_db():
     """Initialize the SQLite database for peer tracking."""
@@ -163,6 +219,7 @@ def get_list(request, *args, **kwargs):
 
 def create_sampleapp(ip, port):
     """Prepare and launch the RESTful application."""
+    reset_db_on_startup()
     init_db()
     app.prepare_address(ip, port)
     app.run()

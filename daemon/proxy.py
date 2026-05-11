@@ -269,7 +269,7 @@ def handle_client(ip, port, conn, addr, routes):
             # Lấy phần tên phía sau chữ 'Host:' (VD: ' app2.local:8080')
             raw_host = line.split(':', 1)[1].strip()
             hostname = raw_host
-            break # Tìm thấy rồi thì thoát vòng lặp cho nhanh
+            break
 
     # Nếu Host có kèm port (app2.local:8080) thì thử bỏ port để map route
     resolved_hostname = hostname
@@ -289,7 +289,7 @@ def handle_client(ip, port, conn, addr, routes):
         print("Not a valid integer")
 
     if resolved_host:
-        print("[Proxy] Host name {} is forwarded to {}:{}".format(resolved_hostname,resolved_host, resolved_port))
+        # print("[Proxy] Host name {} is forwarded to {}:{}".format(resolved_hostname,resolved_host, resolved_port))
         response = forward_request(resolved_host, resolved_port, request_bytes)        
     else:
         response = (

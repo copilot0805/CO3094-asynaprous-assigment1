@@ -25,6 +25,9 @@ import mimetypes
 import os
 from .dictionary import CaseInsensitiveDict
 
+
+DEBUG_SET_COOKIE = os.getenv("ASYNAPROUS_DEBUG_SET_COOKIE", "0") == "1"
+
 BASE_DIR = ""
 
 class Response():   
@@ -224,6 +227,13 @@ class Response():
 
         # 4. Gộp lại bằng \r\n (Carriage Return + Line Feed) và chốt hạ bằng dòng trắng \r\n\r\n
         header_str = "\r\n".join(header_lines) + "\r\n\r\n"
+
+        # Debug: print response headers when Set-Cookie is present
+        if DEBUG_SET_COOKIE and hasattr(self, 'cookies') and self.cookies:
+            try:
+                print(f"[Debug] Response headers (Set-Cookie) for {getattr(request, 'path', '')}:\n{header_str.rstrip()}")
+            except Exception:
+                pass
         
         return header_str.encode('utf-8')
 

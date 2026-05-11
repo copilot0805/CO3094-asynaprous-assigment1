@@ -196,6 +196,7 @@
         input.value = "";
         let res = await fetch('/api/send', {
             method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ target: currentChannel, message: msg })
         });
         let data = await res.json();
