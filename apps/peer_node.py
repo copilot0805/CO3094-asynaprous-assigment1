@@ -6,6 +6,7 @@ import os
 import sys
 import threading
 import urllib.request
+import uuid  # THÊM DÒNG NÀY
 
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(os.path.dirname(CURRENT_DIR))
@@ -16,8 +17,8 @@ MY_NAME = sys.argv[1] if len(sys.argv) > 1 else "Ken"
 MY_PORT = int(sys.argv[2]) if len(sys.argv) > 2 else 5001
 MY_IP = "127.0.0.1"
 # Send requests to proxy (8080) with Host header for tracker routing.
-TRACKER_URL = "http://127.0.0.1:8080"
-TRACKER_HOST = "app2.local"
+TRACKER_URL = "http://127.0.0.1:2026"
+# TRACKER_HOST = "app2.local"
 
 app = AsynapRous()
 
@@ -27,7 +28,7 @@ BASIC_PASSWORD = "password"
 
 
 def _session_cookie_name():
-    return f"session_{MY_PORT}"
+    return f"session_id_{MY_NAME}"  # THÊM DÒNG NÀY: Cookie name includes node name for uniqueness
 
 
 def _encode_cookie_value(username: str, password: str) -> str:
@@ -82,7 +83,7 @@ def register_to_tracker():
     try:
         req = urllib.request.Request(url, data=payload, method="POST")
         req.add_header("Content-Type", "application/json")
-        req.add_header("Host", TRACKER_HOST)
+        # req.add_header("Host", TRACKER_HOST)
         urllib.request.urlopen(req)
         print(f"[*] {MY_NAME} da dang ky thanh cong voi Tracker.")
     except Exception as e:
@@ -95,7 +96,7 @@ def update_peers():
     url = f"{TRACKER_URL}/get-list"
     try:
         req = urllib.request.Request(url, method="GET")
-        req.add_header("Host", TRACKER_HOST)
+        # req.add_header("Host", TRACKER_HOST)
         with urllib.request.urlopen(req, timeout=0.5) as response:
             ACTIVE_PEERS = json.loads(response.read().decode("utf-8"))
     except Exception:
@@ -152,9 +153,15 @@ def api_login(request, *args, **kwargs):
     username = data.get("username", "")
     password = data.get("password", "")
 
+     # THÊM DÒNG NÀY:
+    print(f"[HttpAdapter] Parsing login body with Content-Type: application/json and body: {request.body}")
+    print(f"[HttpAdapter] Parsed JSON login body: username={username}, password={'*' * len(password) if password else '(empty)'}")
+
     if username == MY_NAME and password == BASIC_PASSWORD:
         cookie_name = _session_cookie_name()
         cookie_val = _encode_cookie_value(username, password)
+        # THÊM DÒNG NÀY:
+        print(f"[HttpAdapter] Login success for user {username}")
         return (
             {"status": "ok", "message": "Logged in"},
             {cookie_name: cookie_val},
@@ -162,6 +169,8 @@ def api_login(request, *args, **kwargs):
             {"Content-Type": "application/json"},
         )
 
+    # THÊM DÒNG NÀY:
+    print(f"[HttpAdapter] Login failed for user {username}")
     return build_unauthorized_response(
         f"Sai Username hoặc mật khẩu. Node: {MY_NAME}"
     )

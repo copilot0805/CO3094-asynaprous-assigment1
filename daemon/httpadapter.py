@@ -429,7 +429,7 @@ class HttpAdapter:
     # -------------------------------------------------------------
     async def handle_client_coroutine(self, conn):
         addr = self.connaddr
-        print(f"[HttpAdapter] Invoke handle_client_coroutine connection {addr}")
+        # print(f"[HttpAdapter] Invoke handle_client_coroutine connection {addr}")
 
         req = self.request
         resp = self.response
@@ -466,10 +466,15 @@ class HttpAdapter:
 
                     if cookies:
                         resp.cookies.update(cookies)
+                        # THÊM DÒNG NÀY:
+                        for key, val in cookies.items():
+                            print(f"[Response] Set-Cookie: {key}={val}; Path=/")
                     if headers:
                         resp.headers.update(headers)
                     if status_code:
                         resp.status_code = status_code
+                        if status_code == 401:
+                            print(f"[Response] Status code: {status_code} Unauthorized")
                         if reason:
                             resp.reason = reason
                         else:
