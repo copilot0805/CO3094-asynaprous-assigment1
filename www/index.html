@@ -1,26 +1,3 @@
-<!-- <!doctype html>
-<html>
-<head>
-    <title>bksysnet@hcmut welcome</title>
-
-    <meta charset="utf-8" />
-    <meta http-equiv="Content-type" content="text/html; charset=utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <link rel="stylesheet" href="css/styles.css" />
-</head>
-
-<body>
-<div>
-    <h1>bksysnet@hcmut  Domain</h1>
-    <p>This domain is for use in illustrative examples in documents.
-    </p>
-  
-       <!-- <img src="images/welcome.png" alt="bksysnet at HCMUT" width="500" height="600">   -->
-        <!-- <img src="/images/welcome.png" alt="bksysnet at HCMUT" width="500" height="600">
-</div>
-</body>
-</html> --> -->
-
 <!DOCTYPE html>
 <html lang="vi">
 <head>
@@ -29,21 +6,32 @@
     <style>
         * { box-sizing: border-box; }
         body { font-family: Arial, sans-serif; display: flex; height: 100vh; margin: 0; background: #f3f4f6; color: #111827; }
-        #sidebar { width: 280px; background: #fff; border-right: 1px solid #e5e7eb; display: flex; flex-direction: column; }
-        .section-title { padding: 14px 16px 8px; font-size: 12px; text-transform: uppercase; color: #6b7280; letter-spacing: 0.06em; }
+        #sidebar { width: 280px; background: #fff; border-right: 1px solid #e5e7eb; display: flex; flex-direction: column; overflow-y: auto;}
+        
+        .section-title { padding: 14px 16px 8px; font-size: 12px; text-transform: uppercase; color: #6b7280; letter-spacing: 0.06em; display: flex; justify-content: space-between; align-items: center;}
+        .add-btn { background: #e0ecff; color: #2563eb; font-size: 11px; padding: 3px 8px; border-radius: 4px; border: none; cursor: pointer; font-weight: bold;}
+        .add-btn:hover { background: #bfdbfe; }
+        
         .list { padding: 0 6px 8px; }
         .channel-item { padding: 10px 12px; cursor: pointer; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; margin: 2px 6px; }
         .channel-item:hover { background: #f3f4f6; }
         .channel-item.active { background: #e0ecff; font-weight: bold; color: #1d4ed8; }
         .badge { background: #ef4444; color: #fff; font-size: 11px; padding: 2px 6px; border-radius: 999px; font-weight: bold; }
 
+        .delete-btn { color: #ef4444; font-size: 18px; padding: 0 5px; opacity: 0.5; font-weight: bold; transition: 0.2s; }
+        .delete-btn:hover { opacity: 1; background: #fee2e2; border-radius: 4px; }
+
         #main-chat { flex-grow: 1; display: flex; flex-direction: column; }
         #header { padding: 18px 20px; background: #fff; border-bottom: 1px solid #e5e7eb; display: flex; align-items: center; justify-content: space-between; }
         #header-title { font-size: 18px; font-weight: bold; }
         #header-meta { font-size: 12px; color: #6b7280; }
+        
+        /* CSS cho nút Đăng xuất */
+        .logout-btn { background: transparent; color: #ef4444; border: 1px solid #ef4444; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-weight: bold; transition: 0.2s; font-size: 13px;}
+        .logout-btn:hover { background: #fee2e2; }
+
         #chat-box { flex-grow: 1; padding: 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; }
 
-        /* Tin nhắn không sửa/xóa được theo chuẩn đề bài */
         .msg { padding: 10px 14px; border-radius: 16px; max-width: 68%; line-height: 1.4; word-wrap: break-word; }
         .msg.me { background: #2563eb; color: white; align-self: flex-end; }
         .msg.them { background: #e5e7eb; color: #111827; align-self: flex-start; }
@@ -53,12 +41,24 @@
         #msg-input { flex-grow: 1; padding: 10px 14px; border-radius: 999px; border: 1px solid #d1d5db; outline: none; font-size: 14px; }
         #send-btn { padding: 10px 18px; background: #2563eb; color: #fff; border: none; border-radius: 999px; cursor: pointer; font-weight: bold; }
         #send-btn:hover { background: #1d4ed8; }
+
+        .modal { display: none; position: fixed; z-index: 10; left: 0; top: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); align-items: center; justify-content: center; }
+        .modal-content { background: white; padding: 25px; border-radius: 10px; width: 320px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        .modal-content h3 { margin-top: 0; margin-bottom: 15px; font-size: 16px; }
+        .modal-content input[type="text"] { width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 6px; outline: none; margin-bottom: 15px; }
+        .modal-buttons { display: flex; justify-content: flex-end; gap: 10px; margin-top: 15px; }
+        .modal-buttons button { padding: 8px 15px; border-radius: 6px; cursor: pointer; border: none; font-weight: bold; }
+        .btn-cancel { background: #e5e7eb; color: #374151; }
+        .btn-create { background: #2563eb; color: white; }
     </style>
 </head>
 <body>
 
     <div id="sidebar">
-        <div class="section-title">Kênh đã tham gia</div>
+        <div class="section-title">
+            Kênh đã tham gia
+            <button class="add-btn" onclick="openModal()">+ Tạo nhóm</button>
+        </div>
         <div id="channel-list" class="list"></div>
         <div class="section-title">Danh bạ</div>
         <div id="peer-list" class="list"></div>
@@ -66,8 +66,11 @@
 
     <div id="main-chat">
         <div id="header">
-            <div id="header-title">Kênh: Global</div>
-            <div id="header-meta">Tin nhắn không thể sửa/xóa</div>
+            <div>
+                <div id="header-title">Kênh: Global</div>
+                <div id="header-meta">Tin nhắn không thể sửa/xóa</div>
+            </div>
+            <button class="logout-btn" onclick="logout()">Đăng xuất</button>
         </div>
         <div id="chat-box"></div> 
         <div id="input-area">
@@ -75,145 +78,317 @@
             <button id="send-btn" onclick="sendMessage()">Gửi</button>
         </div>
     </div>
+
+    <div id="createChannelModal" class="modal">
+        <div class="modal-content">
+            <h3>Tạo Kênh P2P Mới</h3>
+            <input type="text" id="newChannelName" placeholder="Tên nhóm...">
+            <div style="font-size: 12px; color: #6b7280; font-weight: bold; margin-bottom: 8px;">CHỌN THÀNH VIÊN:</div>
+            <div id="modal-peer-list" style="max-height: 120px; overflow-y: auto; border: 1px solid #e5e7eb; padding: 10px; border-radius: 6px; margin-bottom: 10px;">
+                </div>
+            <div class="modal-buttons">
+                <button class="btn-cancel" onclick="closeModal()">Hủy</button>
+                <button class="btn-create" onclick="createGroupChannel()">Tạo</button>
+            </div>
+        </div>
+    </div>
+
     <script>
     let myName = "";
     let currentChannel = "Global";
-    let localChannelsState = {};
     let lastReadCounts = {};
+    
+    let customGroups = JSON.parse(localStorage.getItem('custom_groups')) || {};
+    let deletedGroups = JSON.parse(localStorage.getItem('deleted_groups')) || {};
 
     async function pollData() {
         try {
             let res = await fetch('/api/poll');
             let data = await res.json();
             
-            // Xử lý Access Control: Chưa đăng nhập bị đá văng về login.html
-            if (data.redirect) {
-                window.location.href = data.redirect;
-                return;
-            }
+            if (data.redirect) { window.location.href = data.redirect; return; }
             
             myName = data.my_name;
-            
-            // Hiển thị tên tài khoản lên góc trái
             document.title = `Chat - ${myName}`;
-            let accInfo = document.getElementById('account-info');
-            if(!accInfo) {
+            
+            if(!document.getElementById('account-info')) {
                 let div = document.createElement('div');
                 div.id = 'account-info';
-                div.style = 'padding: 10px 15px; background: #0084ff; color: white; font-weight: bold; font-size: 14px;';
+                div.style = 'padding: 10px 15px; background: #2563eb; color: white; font-weight: bold; font-size: 14px;';
                 div.innerHTML = `👤 Tài khoản: ${myName}`;
                 document.getElementById('sidebar').prepend(div);
             }
             
-            renderSidebar(data.peers, data.channels);
-            renderChat(data.channels[currentChannel] || []);
+            let peerArray = Array.isArray(data.peers) ? data.peers : Object.keys(data.peers || {});
+
+            let processedChannels = processIncomingMessages(data.channels);
+
+            renderSidebar(peerArray, processedChannels);
+            renderChat(processedChannels[currentChannel] || []);
         } catch (e) { console.error("Mất kết nối tới Backend."); }
+    }
+
+    function processIncomingMessages(channels) {
+        let newChannels = JSON.parse(JSON.stringify(channels)); 
+        
+        for (let senderKey in newChannels) {
+            let messages = newChannels[senderKey];
+            
+            for (let i = 0; i < messages.length; i++) {
+                let m = messages[i];
+                let text = m.msg || m;
+                
+                if (typeof text === "string" && (text.startsWith("@@GROUP@@") || text.startsWith("@@GROUP_INVITE@@"))) {
+                    let parts = text.split("@@");
+                    let isInvite = text.startsWith("@@GROUP_INVITE@@");
+                    let groupName = parts[2];
+                    let membersStr = parts[3];
+                    
+                    let msgTimestamp = parseInt(parts[4]) || 0;
+                    let actualMsg = isInvite ? "" : parts.slice(5).join("@@");
+
+                    if (isNaN(msgTimestamp) || parts.length < 5) {
+                        msgTimestamp = 0;
+                        actualMsg = isInvite ? "" : parts.slice(4).join("@@");
+                    }
+
+                    if (deletedGroups[groupName]) {
+                        if (msgTimestamp <= deletedGroups[groupName]) {
+                            messages.splice(i, 1);
+                            i--;
+                            continue;
+                        } else {
+                            delete deletedGroups[groupName];
+                            localStorage.setItem('deleted_groups', JSON.stringify(deletedGroups));
+                        }
+                    }
+
+                    if (!customGroups[groupName]) {
+                        customGroups[groupName] = { members: membersStr.split(",") };
+                        localStorage.setItem('custom_groups', JSON.stringify(customGroups));
+                    }
+
+                    if (!isInvite && actualMsg.trim() !== "") {
+                        if (!newChannels[groupName]) newChannels[groupName] = [];
+                        let actualSender = m.from || senderKey;
+                        let msgObj = (typeof m === "string") 
+                            ? { from: parts[0] || senderKey, msg: actualMsg, ts: msgTimestamp } 
+                            : { ...m, from: actualSender, msg: actualMsg, ts: msgTimestamp };
+                        
+                        let isDuplicate = newChannels[groupName].some(exist => exist.msg === actualMsg && exist.from === msgObj.from && exist.ts === msgTimestamp);
+                        if (!isDuplicate) {
+                            newChannels[groupName].push(msgObj);
+                        }
+                    }
+
+                    messages.splice(i, 1);
+                    i--;
+                }
+            }
+        }
+
+        for (let ch in newChannels) {
+            if (customGroups[ch] && Array.isArray(newChannels[ch])) {
+                newChannels[ch].sort((a, b) => (a.ts || 0) - (b.ts || 0));
+            }
+        }
+
+        return newChannels;
     }
 
     function renderSidebar(peers, channels) {
         const channelList = document.getElementById('channel-list');
         const peerList = document.getElementById('peer-list');
+        const modalPeerList = document.getElementById('modal-peer-list');
+        
         channelList.innerHTML = "";
         peerList.innerHTML = "";
+        
+        let modal = document.getElementById('createChannelModal');
+        if (modal && modal.style.display !== 'flex') {
+            let modalHtml = "";
+            peers.forEach(p => {
+                if (p !== myName) {
+                    modalHtml += `<label style="display: block; margin-bottom: 5px;"><input type="checkbox" value="${p}" class="peer-checkbox"> ${p}</label>`;
+                }
+            });
+            modalPeerList.innerHTML = modalHtml;
+        }
 
         let joinedChannels = ["Global"];
-        Object.keys(channels || {}).forEach(ch => {
-            if (!joinedChannels.includes(ch)) joinedChannels.push(ch);
-        });
+        Object.keys(channels || {}).forEach(ch => { if (!joinedChannels.includes(ch)) joinedChannels.push(ch); });
+        Object.keys(customGroups).forEach(ch => { if (!joinedChannels.includes(ch)) joinedChannels.push(ch); });
 
         joinedChannels.forEach(ch => {
             let div = document.createElement('div');
             div.className = "channel-item" + (ch === currentChannel ? " active" : "");
-            div.onclick = () => {
-                currentChannel = ch;
-                markChannelRead(ch, channels);
-                document.getElementById('header-title').innerText = `Kênh: ${ch}`;
-                pollData();
-            };
-
+            
             let newMsgs = channels[ch] ? channels[ch].length : 0;
             let readCount = lastReadCounts[ch] || 0;
             let unread = Math.max(newMsgs - readCount, 0);
             let badge = (unread > 0 && ch !== currentChannel) ? `<span class="badge">${unread}</span>` : "";
 
-            div.innerHTML = `${ch} ${badge}`;
+            let isCustom = customGroups[ch];
+            
+            div.innerHTML = `
+                <div onclick="selectChannel('${ch}')" style="flex-grow:1; display:flex; align-items:center;">
+                    ${isCustom ? '👥' : '#'} ${ch} ${badge}
+                </div>
+                ${isCustom ? `<span class="delete-btn" onclick="event.stopPropagation(); deleteGroup('${ch}')" title="Xóa/Rời nhóm">×</span>` : ''}
+            `;
             channelList.appendChild(div);
         });
 
         peers.forEach(p => {
-            if (p === myName) return;
-            if (joinedChannels.includes(p)) return;
+            if (p === myName || joinedChannels.includes(p)) return;
             let div = document.createElement('div');
             div.className = "channel-item" + (p === currentChannel ? " active" : "");
-            div.onclick = () => {
-                currentChannel = p;
-                markChannelRead(p, channels);
-                document.getElementById('header-title').innerText = `Kênh: ${p}`;
-                pollData();
-            };
-
+            
             let newMsgs = channels[p] ? channels[p].length : 0;
             let readCount = lastReadCounts[p] || 0;
             let unread = Math.max(newMsgs - readCount, 0);
             let badge = (unread > 0 && p !== currentChannel) ? `<span class="badge">${unread}</span>` : "";
 
-            div.innerHTML = `${p} ${badge}`;
+            div.innerHTML = `<div onclick="selectChannel('${p}')" style="flex-grow:1">👤 ${p} ${badge}</div>`;
             peerList.appendChild(div);
         });
 
         localChannelsState = channels;
     }
 
+    window.selectChannel = function(id) {
+        currentChannel = id;
+        markChannelRead(id, localChannelsState);
+        document.getElementById('header-title').innerText = customGroups[id] ? `Nhóm: ${id}` : `Kênh: ${id}`;
+        pollData();
+    }
+
+    window.deleteGroup = function(name) {
+        if(confirm(`Bạn có chắc chắn muốn rời/xóa nhóm "${name}" không?`)) {
+            delete customGroups[name];
+            localStorage.setItem('custom_groups', JSON.stringify(customGroups));
+            
+            deletedGroups[name] = Date.now();
+            localStorage.setItem('deleted_groups', JSON.stringify(deletedGroups));
+
+            if(currentChannel === name) {
+                currentChannel = "Global";
+                document.getElementById('header-title').innerText = "Kênh: Global";
+            }
+            pollData();
+        }
+    }
+
     function markChannelRead(channel, channels) {
-        let count = channels[channel] ? channels[channel].length : 0;
-        lastReadCounts[channel] = count;
+        lastReadCounts[channel] = channels[channel] ? channels[channel].length : 0;
     }
 
     function renderChat(messages) {
         const box = document.getElementById('chat-box');
-        const isScrolledToBottom = box.scrollHeight - box.clientHeight <= box.scrollTop + 10;
+        const isAtBottom = box.scrollHeight - box.clientHeight <= box.scrollTop + 15;
         
         box.innerHTML = "";
         messages.forEach(m => {
-            let isMe = m.from === myName;
-            let html = `<div class="msg ${isMe ? 'me' : 'them'}">
-                            ${!isMe && currentChannel === 'Global' ? `<div class="sender-name">${m.from}</div>` : ''}
-                            ${m.msg}
-                        </div>`;
-            box.innerHTML += html;
-        });
+            let sender = m.from || "System";
+            let text = m.msg || m;
+            if (typeof m === "string" && m.includes(":")) {
+                let p = m.split(":"); sender = p[0].trim(); text = p.slice(1).join(":").trim();
+            }
 
-        if (isScrolledToBottom) {
-            box.scrollTop = box.scrollHeight; 
+            let isMe = sender === myName;
+            box.innerHTML += `<div class="msg ${isMe ? 'me' : 'them'}">
+                                ${!isMe ? `<div class="sender-name">${sender}</div>` : ''}
+                                ${text}
+                              </div>`;
+        });
+        if (isAtBottom) box.scrollTop = box.scrollHeight;
+    }
+
+    function openModal() { document.getElementById('createChannelModal').style.display = 'flex'; }
+    function closeModal() { document.getElementById('createChannelModal').style.display = 'none'; }
+    
+    function createGroupChannel() {
+        let name = document.getElementById('newChannelName').value.trim();
+        let checked = document.querySelectorAll('.peer-checkbox:checked');
+        let members = Array.from(checked).map(cb => cb.value);
+        if (!name || members.length === 0) return alert("Thiếu tên hoặc thành viên!");
+        
+        members.push(myName); 
+        customGroups[name] = { members: members };
+        localStorage.setItem('custom_groups', JSON.stringify(customGroups));
+        
+        let invitePacket = `@@GROUP_INVITE@@${name}@@${members.join(',')}@@${Date.now()}`;
+        for (let target of members) {
+            fetch('/send-peer', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ target: target, message: invitePacket })
+            });
         }
+        
+        closeModal();
+        selectChannel(name);
     }
 
     async function sendMessage() {
         let input = document.getElementById('msg-input');
         let msg = input.value.trim();
         if (!msg) return;
-
         input.value = "";
-        let res = await fetch('/api/send', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ target: currentChannel, message: msg })
-        });
-        let data = await res.json();
-        // Nếu lúc bấm gửi bị lỗi chưa đăng nhập
-        if (data.error === "Unauthorized") {
+
+        if (currentChannel === "Global") {
+            await fetch('/broadcast-peer', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ message: msg })
+            });
+        } 
+        else if (customGroups[currentChannel]) {
+            let members = customGroups[currentChannel].members;
+            let groupSignedMsg = `@@GROUP@@${currentChannel}@@${members.join(',')}@@${Date.now()}@@${msg}`;
+            
+            for (let targetPeer of members) {
+                fetch('/send-peer', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ target: targetPeer, message: groupSignedMsg })
+                });
+            }
+        } 
+        else {
+            await fetch('/send-peer', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ target: currentChannel, message: msg })
+            });
+        }
+        pollData(); 
+    }
+
+    // Logic Đăng xuất
+    async function logout() {
+        if (confirm("Bạn có chắc chắn muốn đăng xuất?")) {
+            try { 
+                // Thử gọi API logout nếu backend có hỗ trợ
+                await fetch('/api/logout', { method: 'POST' }); 
+            } catch(e) {}
+            
+            // Xóa tất cả Cookie ở Local để ép trình duyệt nhả Session
+            document.cookie.split(";").forEach(function(c) { 
+                document.cookie = c.replace(/^ +/, "").replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/"); 
+            });
+            
+            // Chuyển hướng về trang đăng nhập
             window.location.href = '/login.html';
-        } else {
-            pollData(); 
         }
     }
 
-    document.getElementById("msg-input").addEventListener("keypress", function(event) {
-        if (event.key === "Enter") { event.preventDefault(); document.getElementById("send-btn").click(); }
+    document.getElementById("msg-input").addEventListener("keypress", (e) => {
+        if (e.key === "Enter") { e.preventDefault(); sendMessage(); }
     });
 
     setInterval(pollData, 1000);
     pollData();
-</script>
+    </script>
 </body>
 </html>
