@@ -111,66 +111,66 @@ def get_all_peers():
         rows = conn.execute("SELECT username, ip, port FROM peers").fetchall()
     return {row[0]: {"ip": row[1], "port": row[2]} for row in rows}
 
-@app.route('/login', methods=['POST'])
-def login(request, *args, **kwargs):    
-    """
-    Handle user login via POST request.
+# @app.route('/login', methods=['POST'])
+# def login(request, *args, **kwargs):    
+#     """
+#     Handle user login via POST request.
 
-    This route simulates a login process and prints the provided headers and body
-    to the console.
+#     This route simulates a login process and prints the provided headers and body
+#     to the console.
 
-    :param headers (str): The request headers or user identifier.
-    :param body (str): The request body or login payload.
-    """
-    actual_body = request.body
-    print(f"[SampleApp] Logging in with request body: {actual_body}")
-    data = {
-        "message": "Welcome to the RESTful TCP WebApp",
-        "received": actual_body,
-    }
+#     :param headers (str): The request headers or user identifier.
+#     :param body (str): The request body or login payload.
+#     """
+#     actual_body = request.body
+#     print(f"[SampleApp] Logging in with request body: {actual_body}")
+#     data = {
+#         "message": "Welcome to the RESTful TCP WebApp",
+#         "received": actual_body,
+#     }
 
-    # Convert to JSON string
-    json_str = json.dumps(data)
-    return (json_str.encode("utf-8"))
+#     # Convert to JSON string
+#     json_str = json.dumps(data)
+#     return (json_str.encode("utf-8"))
 
-@app.route("/echo", methods=["POST"])
-def echo(request, *args, **kwargs):
-    """Echo back JSON payloads or report an error."""
-    actual_body = request.body
-    print(f"[SampleApp] received body {actual_body}")
+# @app.route("/echo", methods=["POST"])
+# def echo(request, *args, **kwargs):
+#     """Echo back JSON payloads or report an error."""
+#     actual_body = request.body
+#     print(f"[SampleApp] received body {actual_body}")
 
-    try:
-        if actual_body:
-            message = json.loads(actual_body)
-        else:
-            message = "No body received"
-        data = {"received": message}
-        json_str = json.dumps(data)
-        return (json_str.encode("utf-8"))
-    except json.JSONDecodeError:
-        data = {"error": "Invalid JSON format"}
-        json_str = json.dumps(data)
-        return (json_str.encode("utf-8"))
+#     try:
+#         if actual_body:
+#             message = json.loads(actual_body)
+#         else:
+#             message = "No body received"
+#         data = {"received": message}
+#         json_str = json.dumps(data)
+#         return (json_str.encode("utf-8"))
+#     except json.JSONDecodeError:
+#         data = {"error": "Invalid JSON format"}
+#         json_str = json.dumps(data)
+#         return (json_str.encode("utf-8"))
 
 
-@app.route('/hello', methods=['PUT'])
-async def hello(request, *args, **kwargs):
-    """
-    Handle greeting via PUT request.
+# @app.route('/hello', methods=['PUT'])
+# async def hello(request, *args, **kwargs):
+#     """
+#     Handle greeting via PUT request.
 
-    This route prints a greeting message to the console using the provided headers
-    and body.
+#     This route prints a greeting message to the console using the provided headers
+#     and body.
 
-    :param headers (str): The request headers or user identifier.
-    :param body (str): The request body or message payload.
-    """
-    actual_body = request.body
-    print(f"[SampleApp] ['PUT'] **ASYNC** Hello received: {actual_body}")
-    data =  {"id": 1, "name": "Alice", "email": "alice@example.com"}
+#     :param headers (str): The request headers or user identifier.
+#     :param body (str): The request body or message payload.
+#     """
+#     actual_body = request.body
+#     print(f"[SampleApp] ['PUT'] **ASYNC** Hello received: {actual_body}")
+#     data =  {"id": 1, "name": "Alice", "email": "alice@example.com"}
 
-    # Convert to JSON string
-    json_str = json.dumps(data)
-    return (json_str.encode("utf-8"))
+#     # Convert to JSON string
+#     json_str = json.dumps(data)
+#     return (json_str.encode("utf-8"))
 
 # Tracker server
 @app.route('/submit-info', methods=['POST'])
@@ -201,12 +201,12 @@ def submit_info(request, *args, **kwargs):
 
     return response_data
 
-@app.route('/add-list', methods=['POST'])
-def add_list(request, *args, **kwargs):
-    """
-    Compatibility endpoint: behaves like submit-info for peer registration.
-    """
-    return submit_info(request, *args, **kwargs)
+# @app.route('/add-list', methods=['POST'])
+# def add_list(request, *args, **kwargs):
+#     """
+#     Compatibility endpoint: behaves like submit-info for peer registration.
+#     """
+#     return submit_info(request, *args, **kwargs)
 
 @app.route('/get-list', methods=['GET'])
 def get_list(request, *args, **kwargs):

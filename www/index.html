@@ -96,8 +96,10 @@
     <script>
     let myName = "";
     let currentChannel = "Global";
-    let lastReadCounts = {};
-    
+    let localChannelsState = {};
+
+    let lastReadCounts = JSON.parse(sessionStorage.getItem('last_read_counts')) || {};
+
     let customGroups = JSON.parse(localStorage.getItem('custom_groups')) || {};
     let deletedGroups = JSON.parse(localStorage.getItem('deleted_groups')) || {};
 
@@ -125,6 +127,7 @@
 
             renderSidebar(peerArray, processedChannels);
             renderChat(processedChannels[currentChannel] || []);
+            markChannelRead(currentChannel, processedChannels);
         } catch (e) { console.error("Mất kết nối tới Backend."); }
     }
 
@@ -232,7 +235,7 @@
             
             div.innerHTML = `
                 <div onclick="selectChannel('${ch}')" style="flex-grow:1; display:flex; align-items:center;">
-                    ${isCustom ? '👥' : '#'} ${ch} ${badge}
+                    ${isCustom ? `👥 ${ch} (${customGroups[ch].members.length})` : `# ${ch}`} ${badge}
                 </div>
                 ${isCustom ? `<span class="delete-btn" onclick="event.stopPropagation(); deleteGroup('${ch}')" title="Xóa/Rời nhóm">×</span>` : ''}
             `;
@@ -281,7 +284,8 @@
 
     function markChannelRead(channel, channels) {
         lastReadCounts[channel] = channels[channel] ? channels[channel].length : 0;
-    }
+        localStorage.setItem('last_read_counts', JSON.stringify(lastReadCounts));
+}
 
     function renderChat(messages) {
         const box = document.getElementById('chat-box');
@@ -365,29 +369,25 @@
         pollData(); 
     }
 
-    // Logic Đăng xuất
     async function logout() {
-        if (confirm("Bạn có chắc chắn muốn đăng xuất?")) {
-            try { 
-                // Thử gọi API logout nếu backend có hỗ trợ
-                await fetch('/api/logout', { method: 'POST' }); 
-            } catch(e) {}
-            
-            // Xóa tất cả Cookie ở Local để ép trình duyệt nhả Session
-            document.cookie.split(";").forEach(function(c) { 
-                document.cookie = c.replace(/^ +/, "").replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/"); 
-            });
-            
-            // Chuyển hướng về trang đăng nhập
-            window.location.href = '/login.html';
-        }
+        if (!confirm("Bạn có chắc chắn muốn đăng xuất?")) return;
+
+        try {
+            await fetch('/api/logout', { method: 'POST' });
+        } catch (e) {}
+
+        const cookieName = `sessionid_${window.location.port}`;
+        document.cookie = `${cookieName}=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/`;
+
+        sessionStorage.removeItem('last_read_counts');
+        window.location.href = '/login.html';
     }
 
     document.getElementById("msg-input").addEventListener("keypress", (e) => {
         if (e.key === "Enter") { e.preventDefault(); sendMessage(); }
     });
 
-    setInterval(pollData, 1000);
+    setInterval(pollData, 2000);
     pollData();
     </script>
 </body>

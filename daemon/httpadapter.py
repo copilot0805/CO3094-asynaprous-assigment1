@@ -475,6 +475,8 @@ class HttpAdapter:
                         resp.status_code = status_code
                         if status_code == 401:
                             print(f"[Response] Status code: {status_code} Unauthorized")
+                        if status_code == 200:
+                            print(f"[Response] Status code: {status_code} OK")
                         if reason:
                             resp.reason = reason
                         else:

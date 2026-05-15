@@ -28,7 +28,7 @@ BASIC_PASSWORD = "password"
 
 
 def _session_cookie_name():
-    return f"session_id_{MY_NAME}"  # THÊM DÒNG NÀY: Cookie name includes node name for uniqueness
+    return f"sessionid_{MY_PORT}"  
 
 
 def _encode_cookie_value(username: str, password: str) -> str:
@@ -173,6 +173,16 @@ def api_login(request, *args, **kwargs):
     print(f"[HttpAdapter] Login failed for user {username}")
     return build_unauthorized_response(
         f"Sai Username hoặc mật khẩu. Node: {MY_NAME}"
+    )
+
+@app.route('/api/logout', methods=['POST'])
+def api_logout(request, *args, **kwargs):
+    cookie_name = _session_cookie_name()
+    return (
+        {"status": "ok", "message": "Logged out"},
+        {cookie_name: ""},
+        200,
+        {"Content-Type": "application/json"},
     )
 
 # =================================================================
