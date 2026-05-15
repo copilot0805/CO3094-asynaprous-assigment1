@@ -50,6 +50,18 @@
         .modal-buttons button { padding: 8px 15px; border-radius: 6px; cursor: pointer; border: none; font-weight: bold; }
         .btn-cancel { background: #e5e7eb; color: #374151; }
         .btn-create { background: #2563eb; color: white; }
+        
+        /* Chấm xanh lá báo Online */
+        .online-dot {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            background-color: #22c55e;
+            border-radius: 50%;
+            margin-left: 6px;
+            box-shadow: 0 0 0 2px #fff;
+            vertical-align: middle;
+        }
     </style>
 </head>
 <body>
@@ -222,6 +234,25 @@
         Object.keys(channels || {}).forEach(ch => { if (!joinedChannels.includes(ch)) joinedChannels.push(ch); });
         Object.keys(customGroups).forEach(ch => { if (!joinedChannels.includes(ch)) joinedChannels.push(ch); });
 
+        // joinedChannels.forEach(ch => {
+        //     let div = document.createElement('div');
+        //     div.className = "channel-item" + (ch === currentChannel ? " active" : "");
+            
+        //     let newMsgs = channels[ch] ? channels[ch].length : 0;
+        //     let readCount = lastReadCounts[ch] || 0;
+        //     let unread = Math.max(newMsgs - readCount, 0);
+        //     let badge = (unread > 0 && ch !== currentChannel) ? `<span class="badge">${unread}</span>` : "";
+
+        //     let isCustom = customGroups[ch];
+            
+        //     div.innerHTML = `
+        //         <div onclick="selectChannel('${ch}')" style="flex-grow:1; display:flex; align-items:center;">
+        //             ${isCustom ? `👥 ${ch} (${customGroups[ch].members.length})` : `# ${ch}`} ${badge}
+        //         </div>
+        //         ${isCustom ? `<span class="delete-btn" onclick="event.stopPropagation(); deleteGroup('${ch}')" title="Xóa/Rời nhóm">×</span>` : ''}
+        //     `;
+        //     channelList.appendChild(div);
+        // });
         joinedChannels.forEach(ch => {
             let div = document.createElement('div');
             div.className = "channel-item" + (ch === currentChannel ? " active" : "");
@@ -232,10 +263,18 @@
             let badge = (unread > 0 && ch !== currentChannel) ? `<span class="badge">${unread}</span>` : "";
 
             let isCustom = customGroups[ch];
+            let isGlobal = ch === "Global";
             
+            // XÁC ĐỊNH TRẠNG THÁI ONLINE (Chỉ xét chat 1-1)
+            let isOnline = !isCustom && !isGlobal && peers.includes(ch);
+            let onlineIndicator = isOnline ? `<span class="online-dot" title="Đang Online"></span>` : "";
+            
+            // Icon tương ứng: Nhóm, Global, hay Cá nhân
+            let icon = isCustom ? '👥' : (isGlobal ? '#' : '👤');
+
             div.innerHTML = `
                 <div onclick="selectChannel('${ch}')" style="flex-grow:1; display:flex; align-items:center;">
-                    ${isCustom ? `👥 ${ch} (${customGroups[ch].members.length})` : `# ${ch}`} ${badge}
+                    ${icon} ${ch} ${onlineIndicator} ${badge}
                 </div>
                 ${isCustom ? `<span class="delete-btn" onclick="event.stopPropagation(); deleteGroup('${ch}')" title="Xóa/Rời nhóm">×</span>` : ''}
             `;

@@ -201,6 +201,30 @@ def submit_info(request, *args, **kwargs):
 
     return response_data
 
+@app.route('/remove-info', methods=['POST'])
+def remove_info(request, *args, **kwargs):
+    """Xóa một peer khỏi cơ sở dữ liệu khi họ Offline/Logout."""
+    actual_body = request.body.decode('utf-8') if isinstance(request.body, bytes) else request.body
+    print(f"[Tracker] Received remove-info request: {actual_body}")
+    
+    try:
+        data = json.loads(actual_body)
+        username = data.get('username')
+        if username:
+            # Kết nối vào SQLite và xóa Peer
+            conn = sqlite3.connect(DB_PATH)
+            cursor = conn.cursor()
+            cursor.execute("DELETE FROM peers WHERE username = ?", (username,))
+            conn.commit()
+            conn.close()
+            
+            print(f"[Tracker] Đã xóa peer: {username}")
+            return {"status": "success", "message": f"Peer {username} removed"}
+        else:
+            return {"error": "Missing username in JSON payload"}
+    except Exception as e:
+        return {"error": str(e)}
+
 # @app.route('/add-list', methods=['POST'])
 # def add_list(request, *args, **kwargs):
 #     """

@@ -7,6 +7,8 @@ import time
 import urllib.request
 import uuid
 
+import atexit
+
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(os.path.dirname(CURRENT_DIR))
 
@@ -123,6 +125,20 @@ def register_to_tracker():
     except Exception as e:
         print(f"[!] Loi Tracker: {e}")
 
+def unregister_from_tracker():
+    """Báo cho Tracker biết node này đã offline để xóa khỏi Database."""
+    # Giả sử Tracker sẽ có API /remove-info
+    url = f"{TRACKER_URL}/remove-info" 
+    payload = json.dumps(
+        {"username": MY_NAME}
+    ).encode("utf-8")
+    try:
+        req = urllib.request.Request(url, data=payload, method="POST")
+        req.add_header("Content-Type", "application/json")
+        urllib.request.urlopen(req, timeout=2)
+        print(f"[*] {MY_NAME} đã báo Offline lên Tracker thành công.")
+    except Exception as e:
+        pass # Bỏ qua nếu Tracker đã tắt
 
 def update_peers():
     """Fetch active peers from tracker."""
@@ -151,9 +167,33 @@ def send_http_p2p_worker(target_ip, target_port, channel, msg):
 
 
 # ============= API ROUTES =============
+# @app.route('/api/login', methods=['POST'])
+# def api_login(request, *args, **kwargs):
+#     """Login: create session and return token in cookie."""
+#     data = parse_json_body(request)
+#     username = data.get("username", "")
+#     password = data.get("password", "")
+    
+#     print(f"[HttpAdapter] Login attempt: username={username}")
+    
+#     if username == MY_NAME and password == BASIC_PASSWORD:
+#         ip = "127.0.0.1"
+#         token = create_session(username, ip, ttl=3600)  # 1 hour
+#         cookie_name = _session_cookie_name()
+#         print(f"[HttpAdapter] Login success for {username}")
+#         return (
+#             {"status": "ok", "message": "Logged in"},
+#             {cookie_name: token},
+#             200,
+#             {"Content-Type": "application/json"},
+#         )
+    
+#     print(f"[HttpAdapter] Login failed for {username}")
+#     return build_unauthorized_response(f"Sai username hoặc password. Node: {MY_NAME}")
+
 @app.route('/api/login', methods=['POST'])
 def api_login(request, *args, **kwargs):
-    """Login: create session and return token in cookie."""
+    """Login: create session, return token in cookie, and REGISTER TO TRACKER."""
     data = parse_json_body(request)
     username = data.get("username", "")
     password = data.get("password", "")
@@ -164,6 +204,10 @@ def api_login(request, *args, **kwargs):
         ip = "127.0.0.1"
         token = create_session(username, ip, ttl=3600)  # 1 hour
         cookie_name = _session_cookie_name()
+        
+        # --- FIX: BÁO CÁO SỰ TRỞ LẠI VỚI TRACKER ---
+        register_to_tracker()
+        
         print(f"[HttpAdapter] Login success for {username}")
         return (
             {"status": "ok", "message": "Logged in"},
@@ -175,14 +219,32 @@ def api_login(request, *args, **kwargs):
     print(f"[HttpAdapter] Login failed for {username}")
     return build_unauthorized_response(f"Sai username hoặc password. Node: {MY_NAME}")
 
+# @app.route('/api/logout', methods=['POST'])
+# def api_logout(request, *args, **kwargs):
+#     """Logout: delete session token."""
+#     token = request.cookies.get(_session_cookie_name()) if hasattr(request, "cookies") else None
+#     if token:
+#         delete_session(token)
+#     cookie_name = _session_cookie_name()
+#     print(f"[HttpAdapter] Logout for {cookie_name}")
+#     return (
+#         {"status": "ok", "message": "Logged out"},
+#         {cookie_name: ""},
+#         200,
+#         {"Content-Type": "application/json", "Set-Cookie": f"{cookie_name}=; Max-Age=0; Path=/"},
+#     )
 
 @app.route('/api/logout', methods=['POST'])
 def api_logout(request, *args, **kwargs):
-    """Logout: delete session token."""
+    """Logout: delete session token and unregister from tracker."""
     token = request.cookies.get(_session_cookie_name()) if hasattr(request, "cookies") else None
     if token:
         delete_session(token)
     cookie_name = _session_cookie_name()
+    
+    # --- THÊM DÒNG NÀY ĐỂ BÁO OFFLINE LÊN TRACKER ---
+    unregister_from_tracker() 
+    
     print(f"[HttpAdapter] Logout for {cookie_name}")
     return (
         {"status": "ok", "message": "Logged out"},
@@ -298,9 +360,25 @@ def send_peer(request, *args, **kwargs):
     return send_message_to_target(target, msg)
 
 
+# if __name__ == "__main__":
+#     app.prepare_address(MY_IP, MY_PORT)
+#     register_to_tracker()
+    
+#     # Start cleanup background thread
+#     threading.Thread(target=cleanup_sessions, daemon=True).start()
+    
+#     print(
+#         f"[*] Node {MY_NAME} chay o cong {MY_PORT}. "
+#         f"Browser: http://{MY_IP}:{MY_PORT}/login.html"
+#     )
+#     app.run()
+
 if __name__ == "__main__":
     app.prepare_address(MY_IP, MY_PORT)
     register_to_tracker()
+    
+    # --- TỰ ĐỘNG BÁO OFFLINE KHI TẮT TERMINAL ĐỘT NGỘT ---
+    atexit.register(unregister_from_tracker)
     
     # Start cleanup background thread
     threading.Thread(target=cleanup_sessions, daemon=True).start()
