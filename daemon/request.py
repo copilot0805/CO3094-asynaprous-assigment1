@@ -17,10 +17,11 @@ daemon.request
 This module provides a Request object to manage and persist 
 request settings (cookies, auth, proxies).
 """
+import base64
 from .dictionary import CaseInsensitiveDict
 
-class Request():
-    """The fully mutable "class" `Request <Request>` object,
+class Request:
+    """Represent and parse an incoming HTTP request.
     containing the exact bytes that will be sent to the server.
 
     Instances are generated from a "class" `Request <Request>` object, and
@@ -48,6 +49,7 @@ class Request():
         "body",
         "routes",
         "hook",
+        "auth",
     ]
 
     def __init__(self):
@@ -61,6 +63,8 @@ class Request():
         self.path = None        
         # The cookies set used to create Cookie header
         self.cookies = None
+        #: Parsed Authorization credentials (Basic)
+        self.auth = None
         #: request body to send to the server.
         self.body = None
         # The raw header
@@ -73,6 +77,7 @@ class Request():
         self.hook = None
 
     def extract_request_line(self, request):
+        """Extract method, path, and version from the request line."""
         try:
             lines = request.splitlines()
             first_line = lines[0]
@@ -81,7 +86,7 @@ class Request():
             if path == '/':
                 path = '/index.html'
         except Exception:
-            return None, None
+            return None, None, None
 
         return method, path, version
              
@@ -95,74 +100,115 @@ class Request():
                 headers[key.lower()] = val
         return headers
 
-    def fetch_headers_body(self, request):
-        """Prepares the given HTTP headers."""
-        # Split request into header section and body section
-        parts = request.split("\r\n\r\n", 1)  # split once at blank line
+    # def fetch_headers_body(self, request):
+    #     """Prepares the given HTTP headers."""
+    #     # Split request into header section and body section
+    #     parts = request.split("\r\n\r\n", 1)  # split once at blank line
 
+    #     _headers = parts[0]
+    #     _body = parts[1] if len(parts) > 1 else ""
+    #     return _headers, _body
+    def fetch_headers_body(self, request):
+        """Prepares the given HTTP headers and body."""
+        # Kiểm tra mọi loại dấu xuống dòng
+        if "\r\n\r\n" in request:
+            parts = request.split("\r\n\r\n", 1)
+        elif "\n\n" in request:
+            parts = request.split("\n\n", 1)
+        else:
+            parts = [request, ""]
+            
         _headers = parts[0]
-        _body = parts[1] if len(parts) > 1 else ""
+        # Dùng strip() để dọn sạch khoảng trắng/xuống dòng thừa
+        _body = parts[1].strip() 
         return _headers, _body
 
     def prepare(self, request, routes=None):
         """Prepares the entire request with the given parameters."""
 
-        # Prepare the request line from the request header
         print("[Request] prepare request missg {}".format(request))
         self.method, self.path, self.version = self.extract_request_line(request)
+        if not self.method:
+            return 
+        
         print("[Request] {} path {} version {}".format(self.method, self.path, self.version))
 
-        #
-        # @bksysnet Preapring the webapp hook with AsynapRous instance
-        # The default behaviour with HTTP server is empty routed
-        #
-        # TODO manage the webapp hook in this mounting point
-        #
+        # --- FIX 1: LẤY CẢ HEADER VÀ BODY ---
+        raw_headers, raw_body = self.fetch_headers_body(request)
         
+        # Nếu raw_body rỗng, ta gán thành chuỗi rỗng thay vì để nó mặc định là None
+        self.body = raw_body if raw_body else "" 
+        # ------------------------------------
+
+        self.headers = self.prepare_headers(raw_headers) # Truyền raw_headers vào đây cho chuẩn
+        if self.headers is None:
+            self.headers = CaseInsensitiveDict()
+
         if not routes == {}:
             self.routes = routes
             print("[Request] Routing METHOD {} path {}".format(self.method, self.path))
             self.hook = routes.get((self.method, self.path))
-            print("[Request] Hook has request {}".format(request))
-            #
-            # self.hook manipulation goes here
-            # ...
-            #
+            if self.hook:
+                print("[Request] Hook has request {}".format(request))
 
-        self._raw_heaers = ""
-        self._raw_body =  ""
-        cookies = self.headers.get('cookie', '')
+        # take the raw cookies from the dictionary of headers
+        cookies_str = self.headers.get('cookie', '')
+        self.cookies = {}  # parse cookies_str into self.cookies dictionary
             #
             #  TODO: implement the cookie function here
-            #        by parsing the header            #
+            #        by parsing the header
+        if cookies_str:
+            pairs = cookies_str.split(';')
+            for pair in pairs:
+                if '=' in pair:
+                    # Cut exactly one '=' to separate key and value, and strip whitespace
+                    key, value = pair.strip().split('=', 1)
+                    # Use str.strip() to remove leading/trailing whitespace from key and value
+                    self.cookies[key.strip()] = value.strip()
+            print(f"[Request] Parsed cookies: {self.cookies}")
+
+        auth_header = self.headers.get('authorization', '')
+        if auth_header.lower().startswith('basic '):
+            encoded_credentials = auth_header.split(' ', 1)[1]
+            try:
+                decoded_str = base64.b64decode(encoded_credentials).decode('utf-8')
+                username, password = decoded_str.split(':', 1)
+                self.auth = (username, password)
+                print(f"[Request] authenticated user: {username}")
+            except Exception as e:
+                print(f"[Request] Failed to decode Basic auth credentials: {e}")
 
         return
 
     def prepare_body(self, data, files, json=None):
+        """Prepare the request body and headers."""
         self.prepare_content_length(self.body)
-        self.body = body
+        self.body = data
         #
         # TODO prepare the request authentication
         #
-	# self.auth = ...
+        # self.auth = ...
         return
 
 
     def prepare_content_length(self, body):
+        """Set the Content-Length header for the body."""
         self.headers["Content-Length"] = "0"
         #
         # TODO prepare the request authentication
         #
-	# self.auth = ...
+        # self.auth = ...
         return
 
 
     def prepare_auth(self, auth, url=""):
+        """Prepare authorization information."""
         #
         # TODO prepare the request authentication
         #
-	# self.auth = ...
-        return
+        # self.auth = ...
+        pass
 
     def prepare_cookies(self, cookies):
-            self.headers["Cookie"] = cookies
+        """Set the Cookie header."""
+        self.headers["Cookie"] = cookies

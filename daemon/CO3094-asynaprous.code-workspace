@@ -1,0 +1,16 @@
+{
+	"folders": [
+		{
+			"path": ".."
+		},
+		{
+			"name": "IoT-Home",
+			"path": "D:/IoT-Home"
+		},
+		{
+			"name": "firmware",
+			"path": "D:/DADN/IoT-Attendance-System/firmware"
+		}
+	],
+	"settings": {}
+}
