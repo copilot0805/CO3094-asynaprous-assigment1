@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 # AsynapRous Hybrid Chat System - CO3094
 
 Hệ thống Chat lai (Hybrid Chat) được xây dựng trên nền tảng framework **AsynapRous** tự thiết kế, sử dụng lập trình mạng Python thuần (Socket) và kiến trúc non-blocking. Hệ thống hỗ trợ mô hình Client-Server để quản lý danh bạ (Tracker) và mô hình P2P để truyền tin nhắn trực tiếp giữa các người dùng.
