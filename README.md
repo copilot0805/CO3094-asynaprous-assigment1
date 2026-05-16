@@ -98,9 +98,3 @@ Sau login, mở UI (`/index.html`) để gửi tin nhắn:
 - Nếu nhận `401`: redirect client về `/login.html`.
 - Session hiện lưu in-memory → restart server làm mất session; dùng SQLite/Redis cho production.
 - Khi test nhiều peer trên cùng máy, dùng cổng khác nhau và kiểm tra cookie per-port.
-
-## Các file đã chỉnh sửa (tóm tắt)
-- `httpadapter.py`, `request.py`, `response.py`, `proxy.py`, `backend.py`
-- `peer_node.py`, `sampleapp.py`
-- `index.html`, `login.html`
->>>>>>> origin/feature/tracker
