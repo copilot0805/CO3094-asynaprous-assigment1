@@ -3,14 +3,14 @@ import selectors
 
 class EventLoop:
     """
-    Vòng lặp sự kiện 'nhà làm' thay thế cho asyncio.
+    Vòng lặp sự kiện tư thiết kế thay thế cho asyncio.
     Nhiệm vụ: Quản lý hàng đợi các hàm (callbacks) và lắng nghe Socket (non-blocking).
     """
     def __init__(self):
         # Hàng đợi chứa các hàm đã sẵn sàng để thực thi ngay (FIFO - First In First Out)
         self.ready = collections.deque()
         
-        # 'Bác bảo vệ' lo việc canh chừng các Socket (File Descriptors)
+        # lo việc canh chừng các Socket (File Descriptors)
         self.selector = selectors.DefaultSelector()
 
     def call_soon(self, callback, *args):
@@ -20,7 +20,7 @@ class EventLoop:
     def add_reader(self, sock, callback, *args):
         """
         Nhờ hệ điều hành canh chừng một Socket. 
-        Khi nào Socket này CÓ DỮ LIỆU ĐỂ ĐỌC, hãy gọi hàm callback.
+        Khi nào Socket này CÓ DỮ LIỆU ĐỂ ĐỌC, gọi hàm callback.
         """
         # Bắt buộc phải chuyển Socket sang chế độ Non-blocking
         sock.setblocking(False)
@@ -48,7 +48,7 @@ class EventLoop:
                 callback, args = self.ready.popleft()
                 callback(*args)
 
-            # 2. Nếu hàng đợi rỗng, đi hỏi 'bác bảo vệ' xem có Socket nào có dữ liệu không
+            # 2. Nếu hàng đợi rỗng, đi hỏi xem có Socket nào có dữ liệu không
             timeout = 0 if self.ready else None
             
             # Hàm select() sẽ DỪNG TẠI ĐÂY chờ sự kiện, thay vì làm treo cả hệ thống!
